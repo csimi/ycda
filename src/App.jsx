@@ -1,17 +1,13 @@
 import { useState, useMemo } from "react";
-import { Box, Typography, CssBaseline, IconButton, Tooltip } from "@mui/material";
+import { Box, CssBaseline } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import LightModeIcon from "@mui/icons-material/LightMode";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
 import CharacterPanel from "./components/CharacterPanel";
 import StoryPanel from "./components/StoryPanel";
 import InputBar from "./components/InputBar";
-import LLMStatusBar from "./components/LLMStatusBar";
-import { initialEntries } from "./data/story";
-import { characters, npcs as initialNpcs } from "./data/characters";
+import AppHeader from "./components/AppHeader";
+import StorySelect from "./components/StorySelect";
+import { buildSystemPrompt } from "./data/systemPrompt";
 import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
-
-const playerCharacter = characters.find((c) => c.isPlayer);
 
 function buildTheme(mode) {
   return createTheme({
@@ -42,30 +38,59 @@ function formatUserAction(inputMode, text, characterName) {
 }
 
 function App() {
-  const [entries, setEntries] = useState(initialEntries);
-  const [npcs, setNpcs] = useState(initialNpcs);
-  const [lastRun, setLastRun] = useState(null); // { userMessage, aiEntryIds: Set }
-  const [mode, setMode] = useState(() => localStorage.getItem("theme") ?? "light");
-  const { status, progress, generate, revertLast } = useLLM();
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
+  const [activeStory, setActiveStory] = useState(null);
+  const [characters, setCharacters] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [npcs, setNpcs] = useState([]);
+  const [lastRun, setLastRun] = useState(null);
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel } = useLLM();
 
-  const theme = useMemo(() => buildTheme(mode), [mode]);
-
+  const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
+  const isDark = themeMode === "dark";
   const isGenerating = status === "generating";
   const isLLMReady   = status === "ready";
 
-  const toggleMode = () => {
-    const next = mode === "light" ? "dark" : "light";
-    setMode(next);
+  const toggleTheme = () => {
+    const next = isDark ? "light" : "dark";
+    setThemeMode(next);
     localStorage.setItem("theme", next);
   };
 
+  const handleSelectStory = (story) => {
+    setActiveStory(story);
+    setCharacters(story.characters ?? []);
+    setEntries(story.entries ?? []);
+    setNpcs(story.npcs ?? []);
+    setLastRun(null);
+    setSystemPrompt(buildSystemPrompt(story.characters ?? [], story.npcs ?? []));
+  };
+
+  const playerCharacter = characters.find((c) => c.isPlayer);
+
   const mergeNewChars = (newChars) => {
     if (!newChars.length) return;
-    setNpcs((prev) => {
-      const existing = new Set(prev.map((n) => n.name.toLowerCase()));
-      const truly_new = newChars.filter((c) => !existing.has(c.name.toLowerCase()));
-      return truly_new.length ? [...prev, ...truly_new] : prev;
-    });
+    // Deduplicate against the full roster: party + existing npcs
+    const rosterNames = [
+      ...characters.map((c) => c.name.toLowerCase()),
+      ...npcs.map((n) => n.name.toLowerCase()),
+    ];
+    const isVariant = (newName) => {
+      const lower = newName.toLowerCase();
+      // Reject exact matches and prefix overlaps in either direction
+      // e.g. "Forest Guardian" blocks "Forest Guardian's Reflection" and vice-versa
+      return rosterNames.some(
+        (existing) => lower === existing || lower.startsWith(existing + "'") || lower.startsWith(existing + " ") || existing.startsWith(lower + "'") || existing.startsWith(lower + " ")
+      );
+    };
+    const truly_new = newChars.filter((c) => !isVariant(c.name));
+    if (truly_new.length) setNpcs((prev) => [...prev, ...truly_new]);
+  };
+
+  const markKilled = (killedNames) => {
+    const killed = new Set(killedNames.map((n) => n.toLowerCase()));
+    setCharacters((prev) => prev.map((c) => killed.has(c.name.toLowerCase()) ? { ...c, dead: true } : c));
+    setNpcs((prev) => prev.map((n) => killed.has(n.name.toLowerCase()) ? { ...n, dead: true } : n));
   };
 
   const callGenerate = (userMessage) => {
@@ -73,10 +98,11 @@ function App() {
     generate(userMessage, {
       onPlaceholder: (id) => setEntries((prev) => [...prev, { id, type: "story", text: "…" }]),
       onChunk: (id, partial) => setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, text: partial } : e))),
-      onComplete: (id, parsedEntries, newChars) => {
+      onComplete: (id, parsedEntries, newChars, killedNames) => {
         setEntries((prev) => [...prev.filter((e) => e.id !== id), ...parsedEntries]);
         setLastRun({ userMessage, aiEntryIds: new Set(parsedEntries.map((e) => e.id)) });
         mergeNewChars(newChars);
+        if (killedNames.length) markKilled(killedNames);
       },
       onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
     });
@@ -87,10 +113,10 @@ function App() {
       id: Date.now(),
       type: inputMode,
       text,
-      ...(inputMode !== "story" ? { character: playerCharacter.name } : { source: "user" }),
+      ...(inputMode !== "story" ? { character: playerCharacter?.name } : { source: "user" }),
     };
     setEntries((prev) => [...prev, newEntry]);
-    callGenerate(formatUserAction(inputMode, text, playerCharacter.name));
+    callGenerate(formatUserAction(inputMode, text, playerCharacter?.name));
   };
 
   const handleRerun = () => {
@@ -101,72 +127,29 @@ function App() {
     callGenerate(lastRun.userMessage);
   };
 
-  const isDark = mode === "dark";
-  const headerBg = isDark ? "#0a0c14" : "#ffffff";
-  const headerBorder = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
+  // Story selection screen
+  if (!activeStory) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <StorySelect onPlay={handleSelectStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} />
+      </ThemeProvider>
+    );
+  }
 
+  // Game screen
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100vh",
-          bgcolor: "background.default",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            px: 3,
-            py: 1.2,
-            bgcolor: headerBg,
-            borderBottom: `1px solid ${headerBorder}`,
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            flexShrink: 0,
-          }}
-        >
-          <Typography sx={{ fontSize: "1.1rem", mr: 0.5 }}>📖</Typography>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 800, fontSize: "1rem", letterSpacing: 1, color: "primary.main" }}
-          >
-            YCDA
-          </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary", ml: 0.5 }}>
-            · You Can Do Anything
-          </Typography>
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          <LLMStatusBar status={status} progress={progress} />
-
-          <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-            <IconButton onClick={toggleMode} size="small" sx={{ color: "text.secondary" }}>
-              {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-        </Box>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default", overflow: "hidden" }}>
+        <AppHeader isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} storyTitle={activeStory.title} onHome={() => setActiveStory(null)} />
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
-          <CharacterPanel isDark={isDark} npcs={npcs} />
+          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} />
 
-          {/* Right: story + input */}
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              bgcolor: "background.default",
-            }}
-          >
-            <StoryPanel entries={entries} isDark={isDark} />
+          <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default" }}>
+            <StoryPanel entries={entries} isDark={isDark} onRemoveEntry={(id) => setEntries((prev) => prev.filter((e) => e.id !== id))} />
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {

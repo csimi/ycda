@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Box } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import StoryEntry from "./StoryEntry";
 
-export default function StoryPanel({ entries, isDark }) {
+export default function StoryPanel({ entries, isDark, onRemoveEntry }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -27,7 +28,39 @@ export default function StoryPanel({ entries, isDark }) {
       }}
     >
       {entries.map((entry) => (
-        <StoryEntry key={entry.id} entry={entry} isDark={isDark} />
+        <Box
+          key={entry.id}
+          sx={{
+            position: "relative",
+            borderRadius: 1,
+            transition: "background-color 0.15s",
+            "& .entry-remove": { opacity: 0 },
+            "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.02)" },
+            "&:hover .entry-remove": { opacity: 1 },
+            "&:has(.entry-remove:hover)": {
+              bgcolor: isDark ? "rgba(239,68,68,0.09)" : "rgba(239,68,68,0.06)",
+            },
+          }}
+        >
+          <StoryEntry entry={entry} isDark={isDark} />
+          <IconButton
+            className="entry-remove"
+            size="small"
+            onClick={() => onRemoveEntry(entry.id)}
+            sx={{
+              position: "absolute",
+              top: 4,
+              right: 8,
+              width: 20,
+              height: 20,
+              color: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)",
+              transition: "opacity 0.15s, color 0.15s",
+              "&:hover": { color: "error.main" },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 13 }} />
+          </IconButton>
+        </Box>
       ))}
       <div ref={bottomRef} />
     </Box>

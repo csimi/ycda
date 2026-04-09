@@ -1,0 +1,93 @@
+{
+  "id": "ember-compass",
+  "title": "The Ember Compass",
+  "description": "A lost artifact. An ancient forest. Three adventurers who may not survive the night. Follow the trail of a legendary compass said to guide its bearer through any darkness — but darkness has teeth.",
+  "characters": [
+    {
+      "id": 1,
+      "name": "Aelindra",
+      "class": "Ranger",
+      "avatar": "🧝",
+      "gender": "Female",
+      "isPlayer": true
+    },
+    {
+      "id": 2,
+      "name": "Gorvath",
+      "class": "Warrior",
+      "avatar": "🧔",
+      "gender": "Male",
+      "isPlayer": false
+    },
+    {
+      "id": 3,
+      "name": "Sylvara",
+      "class": "Mage",
+      "avatar": "🧙",
+      "gender": "Female",
+      "isPlayer": false
+    }
+  ],
+  "npcs": [
+    {
+      "id": 101,
+      "name": "Mira",
+      "role": "Innkeeper",
+      "avatar": "👩",
+      "gender": "Female",
+      "disposition": "friendly",
+      "note": "Knows local rumours. Owes a favour."
+    },
+    {
+      "id": 102,
+      "name": "Thane Vorrick",
+      "role": "Guard Captain",
+      "avatar": "💂",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "Suspicious of outsiders. Bribeable."
+    },
+    {
+      "id": 103,
+      "name": "The Hollow One",
+      "role": "Unknown",
+      "avatar": "👤",
+      "disposition": "hostile",
+      "note": "Encountered in the forest. Motives unclear."
+    }
+  ],
+  "entries": [
+    {
+      "id": 1,
+      "type": "story",
+      "text": "The ancient forest of Mirefall stretches endlessly before you, its gnarled canopy blotting out the noon sun. You arrived here following rumours of a lost artifact — the Ember Compass — said to guide its bearer through any darkness."
+    },
+    {
+      "id": 2,
+      "type": "story",
+      "text": "Gorvath cracks his knuckles beside you, his armour catching what little light filters through the leaves. Sylvara floats a pale magelight orb overhead, her eyes scanning the tree line with quiet unease."
+    },
+    {
+      "id": 3,
+      "type": "say",
+      "character": "Aelindra",
+      "text": "Something moved behind that oak. I've been tracking it for the last ten minutes — it's not an animal."
+    },
+    {
+      "id": 4,
+      "type": "story",
+      "text": "Sylvara's orb flickers. A low, rhythmic clicking sound rises from the undergrowth, as if a dozen bones are tapping against each other. Gorvath draws his broadsword with a slow, deliberate scrape of steel."
+    },
+    {
+      "id": 5,
+      "type": "do",
+      "character": "Aelindra",
+      "text": "Nocks an arrow and steps silently toward the oak, eyes narrowing as she peers into the shadows."
+    },
+    {
+      "id": 6,
+      "type": "story",
+      "text": "From the darkness emerges a creature — half man, half shadow — its form rippling at the edges like smoke in wind. It raises one elongated hand and speaks in a voice that sounds like crumpling parchment."
+    }
+  ]
+}
