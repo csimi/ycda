@@ -10,6 +10,8 @@ import {
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 const actionTypes = [
   {
@@ -41,7 +43,7 @@ const actionTypes = [
   },
 ];
 
-export default function InputBar({ onSubmit, isDark }) {
+export default function InputBar({ onSubmit, onContinue, onRerun, canRerun, isDark, disabled = false }) {
   const [mode, setMode] = useState("say");
   const [text, setText] = useState("");
 
@@ -49,7 +51,7 @@ export default function InputBar({ onSubmit, isDark }) {
 
   const handleSubmit = () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || disabled) return;
     onSubmit(mode, trimmed);
     setText("");
   };
@@ -85,6 +87,60 @@ export default function InputBar({ onSubmit, isDark }) {
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={onContinue}
+          disabled={disabled}
+          startIcon={<SkipNextIcon sx={{ fontSize: "15px !important" }} />}
+          sx={{
+            textTransform: "none",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            borderRadius: "8px",
+            px: 1.2,
+            py: 0.4,
+            borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+            color: "text.secondary",
+            whiteSpace: "nowrap",
+            "&:hover": {
+              borderColor: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)",
+              bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+            },
+          }}
+        >
+          Continue
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={onRerun}
+          disabled={disabled || !canRerun}
+          startIcon={<ReplayIcon sx={{ fontSize: "15px !important" }} />}
+          sx={{
+            textTransform: "none",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            borderRadius: "8px",
+            px: 1.2,
+            py: 0.4,
+            borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+            color: "text.secondary",
+            whiteSpace: "nowrap",
+            "&:hover": {
+              borderColor: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)",
+              bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+            },
+            "&.Mui-disabled": {
+              opacity: 0.35,
+              borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+            },
+          }}
+        >
+          Re-run
+        </Button>
+
         <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, whiteSpace: "nowrap" }}>
           I will:
         </Typography>
@@ -152,7 +208,7 @@ export default function InputBar({ onSubmit, isDark }) {
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={!text.trim()}
+          disabled={!text.trim() || disabled}
           sx={{
             bgcolor: activeType.color,
             color: "#fff",
@@ -168,7 +224,7 @@ export default function InputBar({ onSubmit, isDark }) {
             "&.Mui-disabled": { bgcolor: disabledBg, color: disabledColor },
           }}
         >
-          {activeType.label}
+          {disabled ? "Wait…" : activeType.label}
         </Button>
       </Box>
     </Box>

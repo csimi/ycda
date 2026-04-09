@@ -6,8 +6,10 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import CharacterPanel from "./components/CharacterPanel";
 import StoryPanel from "./components/StoryPanel";
 import InputBar from "./components/InputBar";
+import LLMStatusBar from "./components/LLMStatusBar";
 import { initialEntries } from "./data/story";
-import { characters } from "./data/characters";
+import { characters, npcs as initialNpcs } from "./data/characters";
+import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
 
 const playerCharacter = characters.find((c) => c.isPlayer);
 
@@ -33,11 +35,23 @@ function buildTheme(mode) {
   });
 }
 
+function formatUserAction(inputMode, text, characterName) {
+  if (inputMode === "say") return `${characterName} says: "${text}"`;
+  if (inputMode === "do")  return `${characterName} does: ${text}`;
+  return `Story beat: ${text}`;
+}
+
 function App() {
   const [entries, setEntries] = useState(initialEntries);
+  const [npcs, setNpcs] = useState(initialNpcs);
+  const [lastRun, setLastRun] = useState(null); // { userMessage, aiEntryIds: Set }
   const [mode, setMode] = useState(() => localStorage.getItem("theme") ?? "light");
+  const { status, progress, generate, revertLast } = useLLM();
 
   const theme = useMemo(() => buildTheme(mode), [mode]);
+
+  const isGenerating = status === "generating";
+  const isLLMReady   = status === "ready";
 
   const toggleMode = () => {
     const next = mode === "light" ? "dark" : "light";
@@ -45,14 +59,46 @@ function App() {
     localStorage.setItem("theme", next);
   };
 
-  const handleSubmit = (mode, text) => {
+  const mergeNewChars = (newChars) => {
+    if (!newChars.length) return;
+    setNpcs((prev) => {
+      const existing = new Set(prev.map((n) => n.name.toLowerCase()));
+      const truly_new = newChars.filter((c) => !existing.has(c.name.toLowerCase()));
+      return truly_new.length ? [...prev, ...truly_new] : prev;
+    });
+  };
+
+  const callGenerate = (userMessage) => {
+    if (!isLLMReady) return;
+    generate(userMessage, {
+      onPlaceholder: (id) => setEntries((prev) => [...prev, { id, type: "story", text: "…" }]),
+      onChunk: (id, partial) => setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, text: partial } : e))),
+      onComplete: (id, parsedEntries, newChars) => {
+        setEntries((prev) => [...prev.filter((e) => e.id !== id), ...parsedEntries]);
+        setLastRun({ userMessage, aiEntryIds: new Set(parsedEntries.map((e) => e.id)) });
+        mergeNewChars(newChars);
+      },
+      onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
+    });
+  };
+
+  const handleSubmit = (inputMode, text) => {
     const newEntry = {
       id: Date.now(),
-      type: mode,
+      type: inputMode,
       text,
-      ...(mode !== "story" ? { character: playerCharacter.name } : {}),
+      ...(inputMode !== "story" ? { character: playerCharacter.name } : { source: "user" }),
     };
     setEntries((prev) => [...prev, newEntry]);
+    callGenerate(formatUserAction(inputMode, text, playerCharacter.name));
+  };
+
+  const handleRerun = () => {
+    if (!lastRun || !isLLMReady) return;
+    setEntries((prev) => prev.filter((e) => !lastRun.aiEntryIds.has(e.id)));
+    setLastRun(null);
+    revertLast();
+    callGenerate(lastRun.userMessage);
   };
 
   const isDark = mode === "dark";
@@ -97,6 +143,8 @@ function App() {
 
           <Box sx={{ flexGrow: 1 }} />
 
+          <LLMStatusBar status={status} progress={progress} />
+
           <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
             <IconButton onClick={toggleMode} size="small" sx={{ color: "text.secondary" }}>
               {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
@@ -106,7 +154,7 @@ function App() {
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
-          <CharacterPanel isDark={isDark} />
+          <CharacterPanel isDark={isDark} npcs={npcs} />
 
           {/* Right: story + input */}
           <Box
@@ -119,7 +167,17 @@ function App() {
             }}
           >
             <StoryPanel entries={entries} isDark={isDark} />
-            <InputBar onSubmit={handleSubmit} isDark={isDark} />
+            <InputBar
+              onSubmit={handleSubmit}
+              onContinue={() => {
+                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "continue", text: "Continue the story." }]);
+                callGenerate("Continue the story.");
+              }}
+              onRerun={handleRerun}
+              canRerun={!!lastRun && isLLMReady}
+              isDark={isDark}
+              disabled={isGenerating || status === "loading"}
+            />
           </Box>
         </Box>
       </Box>

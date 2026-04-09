@@ -1,5 +1,5 @@
 import { Box, Typography, LinearProgress, Chip, Tooltip } from "@mui/material";
-import { characters, npcs } from "../data/characters";
+import { characters } from "../data/characters";
 
 function modeColor(isDark, darkVal, lightVal) {
   return isDark ? darkVal : lightVal;
@@ -120,7 +120,7 @@ const dispositionColor = {
   hostile: "#f87171",
 };
 
-function NpcCard({ npc, isDark }) {
+function NpcCard({ npc, isDark, isNew }) {
   const { name, role, avatar, disposition, note } = npc;
   const color = dispositionColor[disposition];
 
@@ -130,10 +130,32 @@ function NpcCard({ npc, isDark }) {
         mb: 1.2,
         p: 1,
         borderRadius: 2,
-        bgcolor: modeColor(isDark, "rgba(255,255,255,0.03)", "rgba(0,0,0,0.03)"),
-        border: `1px solid ${modeColor(isDark, "rgba(255,255,255,0.06)", "rgba(0,0,0,0.08)")}`,
+        bgcolor: isNew
+          ? modeColor(isDark, "rgba(99,102,241,0.1)", "rgba(99,102,241,0.07)")
+          : modeColor(isDark, "rgba(255,255,255,0.03)", "rgba(0,0,0,0.03)"),
+        border: isNew
+          ? `1px solid ${modeColor(isDark, "rgba(99,102,241,0.4)", "rgba(99,102,241,0.3)")}`
+          : `1px solid ${modeColor(isDark, "rgba(255,255,255,0.06)", "rgba(0,0,0,0.08)")}`,
+        position: "relative",
       }}
     >
+      {isNew && (
+        <Chip
+          label="NEW"
+          size="small"
+          sx={{
+            position: "absolute",
+            top: 5,
+            right: 5,
+            height: 13,
+            fontSize: "0.5rem",
+            fontWeight: 700,
+            bgcolor: "rgba(99,102,241,0.7)",
+            color: "#fff",
+            "& .MuiChip-label": { px: 0.7 },
+          }}
+        />
+      )}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.5 }}>
         <Typography sx={{ fontSize: "1.3rem", lineHeight: 1 }}>{avatar}</Typography>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -186,9 +208,12 @@ function SectionHeader({ label, isDark }) {
   );
 }
 
-export default function CharacterPanel({ isDark }) {
+export default function CharacterPanel({ isDark, npcs }) {
   const panelBg = modeColor(isDark, "#0f1117", "#f8f7f4");
   const panelBorder = modeColor(isDark, "rgba(255,255,255,0.08)", "rgba(0,0,0,0.1)");
+
+  // Any NPC whose id is not a plain integer is AI-generated (uses Date.now() + Math.random())
+  const initialNpcIds = new Set(npcs.filter((n) => Number.isInteger(n.id)).map((n) => n.id));
 
   return (
     <Box
@@ -213,7 +238,7 @@ export default function CharacterPanel({ isDark }) {
       <SectionHeader label="Characters" isDark={isDark} />
       <Box sx={{ p: 1.2 }}>
         {npcs.map((n) => (
-          <NpcCard key={n.id} npc={n} isDark={isDark} />
+          <NpcCard key={n.id} npc={n} isDark={isDark} isNew={!initialNpcIds.has(n.id)} />
         ))}
       </Box>
     </Box>

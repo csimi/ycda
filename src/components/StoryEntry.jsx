@@ -2,6 +2,8 @@ import { Box, Typography } from "@mui/material";
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
 
 const typeConfig = {
   story: {
@@ -63,6 +65,76 @@ export default function StoryEntry({ entry, isDark }) {
   const cfg = typeConfig[entry.type];
   const colors = isDark ? cfg.dark : cfg.light;
   const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
+
+  if (entry.type === "story" && entry.source === "continue") {
+    const color = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)";
+    return (
+      <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)" }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, color }}>
+          <SkipNextIcon sx={{ fontSize: 11 }} />
+          <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+            continue
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)" }} />
+      </Box>
+    );
+  }
+
+  if (entry.type === "story" && entry.source === "user") {
+    const accentColor = isDark ? "rgba(251,191,36,0.7)" : "rgba(180,130,20,0.7)";
+    const textColor   = isDark ? "rgba(251,191,36,0.85)" : "#7c5a0a";
+    const bgColor     = isDark ? "rgba(251,191,36,0.06)" : "rgba(251,191,36,0.08)";
+    const borderColor = isDark ? "rgba(251,191,36,0.3)" : "rgba(180,130,20,0.3)";
+    return (
+      <Box
+        sx={{
+          mx: 3,
+          my: 0.5,
+          px: 1.5,
+          py: 0.8,
+          display: "flex",
+          gap: 1.2,
+          alignItems: "flex-start",
+          bgcolor: bgColor,
+          border: `1px dashed ${borderColor}`,
+          borderRadius: 2,
+        }}
+      >
+        <Box
+          sx={{
+            mt: 0.2,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            bgcolor: isDark ? "rgba(251,191,36,0.12)" : "rgba(180,130,20,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: accentColor,
+          }}
+        >
+          <EditNoteIcon sx={{ fontSize: 13 }} />
+        </Box>
+        <Box>
+          <Typography sx={{ fontSize: "0.62rem", color: accentColor, fontWeight: 600, mb: 0.2 }}>
+            Player note
+          </Typography>
+          <Typography
+            sx={{
+              color: textColor,
+              fontSize: "0.88rem",
+              lineHeight: 1.6,
+            }}
+          >
+            {entry.text}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   if (entry.type === "story") {
     return (
