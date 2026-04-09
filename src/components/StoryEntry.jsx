@@ -1,0 +1,133 @@
+import { Box, Typography } from "@mui/material";
+import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
+import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
+import AutoStoriesIcon from "@mui/icons-material/AutoStories";
+
+const typeConfig = {
+  story: {
+    icon: <AutoStoriesIcon sx={{ fontSize: 14 }} />,
+    label: "Narrator",
+    dark: {
+      bubbleBg: "transparent",
+      textColor: "rgba(220,210,200,0.9)",
+      labelColor: "rgba(180,160,120,0.8)",
+      iconBg: "rgba(180,160,120,0.15)",
+    },
+    light: {
+      bubbleBg: "transparent",
+      textColor: "#5c4a2a",
+      labelColor: "#9c7b3a",
+      iconBg: "rgba(156,123,58,0.12)",
+    },
+    italic: true,
+    border: "none",
+    px: 3,
+  },
+  say: {
+    icon: <RecordVoiceOverIcon sx={{ fontSize: 14 }} />,
+    label: "Says",
+    dark: {
+      bubbleBg: "rgba(99,102,241,0.18)",
+      textColor: "#e0e7ff",
+      labelColor: "rgba(165,180,252,0.9)",
+    },
+    light: {
+      bubbleBg: "rgba(99,102,241,0.1)",
+      textColor: "#312e81",
+      labelColor: "#4f46e5",
+    },
+    italic: false,
+    border: { dark: "1px solid rgba(99,102,241,0.35)", light: "1px solid rgba(99,102,241,0.3)" },
+    px: 1.5,
+  },
+  do: {
+    icon: <DirectionsRunIcon sx={{ fontSize: 14 }} />,
+    label: "Does",
+    dark: {
+      bubbleBg: "rgba(16,185,129,0.12)",
+      textColor: "#d1fae5",
+      labelColor: "rgba(110,231,183,0.9)",
+    },
+    light: {
+      bubbleBg: "rgba(16,185,129,0.08)",
+      textColor: "#064e3b",
+      labelColor: "#059669",
+    },
+    italic: true,
+    border: { dark: "1px solid rgba(16,185,129,0.3)", light: "1px solid rgba(16,185,129,0.35)" },
+    px: 1.5,
+  },
+};
+
+export default function StoryEntry({ entry, isDark }) {
+  const cfg = typeConfig[entry.type];
+  const colors = isDark ? cfg.dark : cfg.light;
+  const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
+
+  if (entry.type === "story") {
+    return (
+      <Box sx={{ px: cfg.px, py: 0.8, display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+        <Box
+          sx={{
+            mt: 0.3,
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            bgcolor: colors.iconBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: colors.labelColor,
+          }}
+        >
+          {cfg.icon}
+        </Box>
+        <Typography
+          sx={{
+            color: colors.textColor,
+            fontStyle: "italic",
+            fontSize: "0.95rem",
+            lineHeight: 1.75,
+            fontFamily: "'Georgia', serif",
+          }}
+        >
+          {entry.text}
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ px: 3, py: 0.8, display: "flex", justifyContent: "flex-start" }}>
+      <Box sx={{ maxWidth: "75%" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
+          <Box sx={{ color: colors.labelColor, display: "flex", alignItems: "center" }}>{cfg.icon}</Box>
+          <Typography sx={{ fontSize: "0.7rem", color: colors.labelColor, fontWeight: 600 }}>
+            {entry.character} · {cfg.label}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            bgcolor: colors.bubbleBg,
+            border,
+            borderRadius: entry.type === "say" ? "16px 16px 16px 4px" : "12px",
+            px: cfg.px,
+            py: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              color: colors.textColor,
+              fontSize: "0.9rem",
+              lineHeight: 1.6,
+              fontStyle: cfg.italic ? "italic" : "normal",
+            }}
+          >
+            {entry.type === "say" ? `"${entry.text}"` : `* ${entry.text} *`}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
