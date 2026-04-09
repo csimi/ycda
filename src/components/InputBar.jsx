@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -12,6 +12,7 @@ import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ReplayIcon from "@mui/icons-material/Replay";
+import StopIcon from "@mui/icons-material/Stop";
 
 const actionTypes = [
   {
@@ -43,9 +44,14 @@ const actionTypes = [
   },
 ];
 
-export default function InputBar({ onSubmit, onContinue, onRerun, canRerun, isDark, disabled = false }) {
+export default function InputBar({ onSubmit, onContinue, onRerun, onCancel, canRerun, isDark, disabled = false, isGenerating = false }) {
   const [mode, setMode] = useState("say");
   const [text, setText] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (!isGenerating) setCancelling(false);
+  }, [isGenerating]);
 
   const activeType = actionTypes.find((t) => t.value === mode);
 
@@ -205,27 +211,49 @@ export default function InputBar({ onSubmit, onContinue, onRerun, canRerun, isDa
             "& .MuiInputBase-input::placeholder": { color: placeholderColor, opacity: 1 },
           }}
         />
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={!text.trim() || disabled}
-          sx={{
-            bgcolor: activeType.color,
-            color: "#fff",
-            fontWeight: 700,
-            borderRadius: 2,
-            px: 2.5,
-            py: 1,
-            minWidth: 80,
-            flexShrink: 0,
-            textTransform: "none",
-            fontSize: "0.85rem",
-            "&:hover": { bgcolor: activeType.color, filter: "brightness(1.1)" },
-            "&.Mui-disabled": { bgcolor: disabledBg, color: disabledColor },
-          }}
-        >
-          {disabled ? "Wait…" : activeType.label}
-        </Button>
+        {isGenerating ? (
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelling}
+            onClick={() => { setCancelling(true); onCancel(); }}
+            startIcon={<StopIcon sx={{ fontSize: "16px !important" }} />}
+            sx={{
+              fontWeight: 700,
+              borderRadius: 2,
+              px: 2,
+              py: 1,
+              minWidth: 110,
+              flexShrink: 0,
+              textTransform: "none",
+              fontSize: "0.85rem",
+            }}
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={!text.trim() || disabled}
+            sx={{
+              bgcolor: activeType.color,
+              color: "#fff",
+              fontWeight: 700,
+              borderRadius: 2,
+              px: 2.5,
+              py: 1,
+              minWidth: 80,
+              flexShrink: 0,
+              textTransform: "none",
+              fontSize: "0.85rem",
+              "&:hover": { bgcolor: activeType.color, filter: "brightness(1.1)" },
+              "&.Mui-disabled": { bgcolor: disabledBg, color: disabledColor },
+            }}
+          >
+            {activeType.label}
+          </Button>
+        )}
       </Box>
     </Box>
   );

@@ -1,4 +1,5 @@
-import { Box, Typography, Chip, Tooltip } from "@mui/material";
+import { Box, Typography, Chip, Tooltip, IconButton } from "@mui/material";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 
 function modeColor(isDark, darkVal, lightVal) {
   return isDark ? darkVal : lightVal;
@@ -41,7 +42,7 @@ function DeadChip() {
   );
 }
 
-function CharacterCard({ character, isDark }) {
+function CharacterCard({ character, isDark, onRevive }) {
   const { name, class: cls, avatar, gender, isPlayer, dead } = character;
 
   return (
@@ -105,9 +106,16 @@ function CharacterCard({ character, isDark }) {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center" }}>
         <GenderPill gender={gender} isDark={isDark} />
         {dead && <DeadChip />}
+        {dead && (
+          <Tooltip title="Revive">
+            <IconButton size="small" onClick={() => onRevive(name)} sx={{ ml: "auto", p: 0.3, color: "#f87171", "&:hover": { color: "#34d399" } }}>
+              <FavoriteIcon sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
     </Box>
   );
@@ -119,7 +127,7 @@ const dispositionColor = {
   hostile:  "#f87171",
 };
 
-function NpcCard({ npc, isDark, isNew }) {
+function NpcCard({ npc, isDark, isNew, onRevive }) {
   const { name, role, avatar, gender, disposition, note, dead } = npc;
   const color = dead ? "#6b7280" : dispositionColor[disposition];
 
@@ -174,9 +182,16 @@ function NpcCard({ npc, isDark, isNew }) {
           />
         </Tooltip>
       </Box>
-      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: note ? 0.5 : 0 }}>
+      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center", mb: note ? 0.5 : 0 }}>
         <GenderPill gender={gender} isDark={isDark} />
         {dead && <DeadChip />}
+        {dead && (
+          <Tooltip title="Revive">
+            <IconButton size="small" onClick={() => onRevive(name)} sx={{ ml: "auto", p: 0.3, color: "#f87171", "&:hover": { color: "#34d399" } }}>
+              <FavoriteIcon sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
       {note && (
         <Typography
@@ -208,7 +223,7 @@ function SectionHeader({ label, isDark }) {
   );
 }
 
-export default function CharacterPanel({ isDark, npcs, characters }) {
+export default function CharacterPanel({ isDark, npcs, characters, onRevive }) {
   const panelBg = modeColor(isDark, "#0f1117", "#f8f7f4");
   const panelBorder = modeColor(isDark, "rgba(255,255,255,0.08)", "rgba(0,0,0,0.1)");
   const initialNpcIds = new Set(npcs.filter((n) => Number.isInteger(n.id)).map((n) => n.id));
@@ -229,14 +244,14 @@ export default function CharacterPanel({ isDark, npcs, characters }) {
       <SectionHeader label="Party" isDark={isDark} />
       <Box sx={{ p: 1.2 }}>
         {characters.map((c) => (
-          <CharacterCard key={c.id} character={c} isDark={isDark} />
+          <CharacterCard key={c.id} character={c} isDark={isDark} onRevive={onRevive} />
         ))}
       </Box>
 
       <SectionHeader label="Characters" isDark={isDark} />
       <Box sx={{ p: 1.2 }}>
         {npcs.map((n) => (
-          <NpcCard key={n.id} npc={n} isDark={isDark} isNew={!initialNpcIds.has(n.id)} />
+          <NpcCard key={n.id} npc={n} isDark={isDark} isNew={!initialNpcIds.has(n.id)} onRevive={onRevive} />
         ))}
       </Box>
     </Box>

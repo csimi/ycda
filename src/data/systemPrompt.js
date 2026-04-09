@@ -47,11 +47,13 @@ OUTPUT FORMAT — every line must begin with exactly one of these tags, with no 
   [SAY:<character name>] <what they say — no surrounding quotes>
   [DO:<character name>] <what they physically do — no surrounding asterisks>
   [KILL:<character name>]   ← no text after the closing bracket; only when a character definitively dies this turn
+  [REVIVE:<character name>] ← no text after the closing bracket; only when a dead character is unambiguously brought back to life
   [NEW_CHAR:<name>|<role>|<gender>|<disposition>|<one-sentence note>]   ← see strict rules below
 
-RULES FOR [KILL]:
-- [KILL] is a silent marker. It has NO text after the bracket. Example: [KILL:Gorvath]
-- Only emit it when the character actually dies in this turn. Do NOT emit it speculatively or as flavour.
+RULES FOR [KILL] and [REVIVE]:
+- Both are silent markers with NO text after the bracket. Example: [KILL:Gorvath]  [REVIVE:Gorvath]
+- [KILL]: only when the character actually dies this turn. Do NOT emit speculatively or as flavour.
+- [REVIVE]: only when a dead character is definitively brought back to life (resurrection spell, divine miracle, etc.).
 
 RULES FOR [NEW_CHAR] — default is NEVER. Only emit it when ALL of the following are true:
   1. The character has a unique proper name (not a title, role, or description).

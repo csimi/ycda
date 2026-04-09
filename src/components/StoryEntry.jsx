@@ -1,9 +1,10 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Tooltip } from "@mui/material";
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
+import CompressIcon from "@mui/icons-material/Compress";
 
 const typeConfig = {
   story: {
@@ -65,6 +66,26 @@ export default function StoryEntry({ entry, isDark }) {
   const cfg = typeConfig[entry.type];
   const colors = isDark ? cfg.dark : cfg.light;
   const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
+
+  if (entry.type === "story" && entry.source === "compact") {
+    const color = isDark ? "rgba(251,191,36,0.35)" : "rgba(180,130,20,0.45)";
+    const lineColor = isDark ? "rgba(251,191,36,0.12)" : "rgba(180,130,20,0.15)";
+    const inner = (
+      <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, color, cursor: entry.text ? "help" : "default" }}>
+          <CompressIcon sx={{ fontSize: 11 }} />
+          <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+            context compacted
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+      </Box>
+    );
+    return entry.text
+      ? <Tooltip title={entry.text} placement="top" arrow><span>{inner}</span></Tooltip>
+      : inner;
+  }
 
   if (entry.type === "story" && entry.source === "continue") {
     const color = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)";
