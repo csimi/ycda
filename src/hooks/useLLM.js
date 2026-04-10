@@ -5,9 +5,9 @@ import { estimateTokenCount } from "tokenx";
 const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
 
 // Tokens reserved for the model's own output
-const GENERATION_BUDGET = 512;
+const GENERATION_BUDGET = 256;
 // Compact when history exceeds this fraction of available context
-const COMPACTION_RATIO = 0.80;
+const COMPACTION_RATIO = 0.90;
 // Estimated token overhead for the synthetic summary exchange injected after compaction
 const SUMMARY_OVERHEAD = 250;
 
@@ -73,6 +73,10 @@ async function compactHistory(history, engine, contextWindow) {
   const summary = result.choices[0].message.content.trim();
   console.debug("[YCDA] Context summary →", summary);
 
+  // firstSurvivedOrigIdx: the original history index of the first kept message.
+  // Used by the caller to rebase entryBatchesRef indices after compaction.
+  const firstSurvivedOrigIdx = 1 + (messages.length - toKeep.length);
+
   return {
     history: [
       system,
@@ -82,6 +86,7 @@ async function compactHistory(history, engine, contextWindow) {
     ],
     compacted: true,
     summary,
+    firstSurvivedOrigIdx,
   };
 }
 
@@ -114,9 +119,6 @@ const VALID_DISPOSITIONS = new Set(["friendly", "neutral", "hostile"]);
 function parseGMResponse(text) {
   const entries = [];
   const newChars = [];
-  const killedNames = [];
-  const revivedNames = [];
-  const dispositionChanges = [];
   const lines = text.split("\n");
 
   for (const raw of lines) {
@@ -125,7 +127,7 @@ function parseGMResponse(text) {
 
     const storyMatch = line.match(/^\[STORY\]\s*(.+)/i);
     if (storyMatch) {
-      entries.push({ id: Date.now() + Math.random(), type: "story", text: storyMatch[1].trim() });
+      entries.push({ id: Date.now() + Math.random(), type: "story", text: storyMatch[1].trim(), _raw: line });
       continue;
     }
 
@@ -136,6 +138,7 @@ function parseGMResponse(text) {
         type: "say",
         character: sayMatch[1].trim(),
         text: sayMatch[2].replace(/^"|"$/g, "").trim(),
+        _raw: line,
       });
       continue;
     }
@@ -147,11 +150,12 @@ function parseGMResponse(text) {
         type: "do",
         character: doMatch[1].trim(),
         text: doMatch[2].replace(/^\*|\*$/g, "").trim(),
+        _raw: line,
       });
       continue;
     }
 
-    // [NEW_CHAR:name|role|disposition|note]
+    // [NEW_CHAR:name|role|gender|disposition|note]
     const newCharMatch = line.match(/^\[NEW_CHAR:([^\]]+)\]/i);
     if (newCharMatch) {
       const parts = newCharMatch[1].split("|").map((s) => s.trim());
@@ -172,42 +176,18 @@ function parseGMResponse(text) {
       continue;
     }
 
-    // [KILL:CharName]
-    const killMatch = line.match(/^\[KILL:([^\]]+)\]/i);
-    if (killMatch) {
-      killedNames.push(killMatch[1].trim());
-      continue;
-    }
-
-    // [REVIVE:CharName]
-    const reviveMatch = line.match(/^\[REVIVE:([^\]]+)\]/i);
-    if (reviveMatch) {
-      revivedNames.push(reviveMatch[1].trim());
-      continue;
-    }
-
-    // [DISPOSITION:CharName|friendly|neutral|hostile]
-    const dispMatch = line.match(/^\[DISPOSITION:([^\]|]+)\|([^\]]+)\]/i);
-    if (dispMatch) {
-      const disp = dispMatch[2].trim().toLowerCase();
-      if (VALID_DISPOSITIONS.has(disp)) {
-        dispositionChanges.push({ name: dispMatch[1].trim(), disposition: disp });
-      }
-      continue;
-    }
-
     // Fallback: unrecognised line becomes a story entry
     if (line.length > 5) {
-      entries.push({ id: Date.now() + Math.random(), type: "story", text: line });
+      entries.push({ id: Date.now() + Math.random(), type: "story", text: line, _raw: line });
     }
   }
 
   // Guarantee at least one entry so the placeholder is always replaced
   if (entries.length === 0) {
-    entries.push({ id: Date.now(), type: "story", text: text.trim() });
+    entries.push({ id: Date.now(), type: "story", text: text.trim(), _raw: text.trim() });
   }
 
-  return { entries, newChars, killedNames, revivedNames, dispositionChanges };
+  return { entries, newChars };
 }
 
 export function useLLM() {
@@ -218,6 +198,9 @@ export function useLLM() {
   const historyRef = useRef([]);
   const statusRef = useRef("uninitialized");
   const cancelledRef = useRef(false);
+  // Tracks which history assistant message each batch of AI entries came from.
+  // Each item: { histIdx: number, items: Array<{ id, raw: string }> }
+  const entryBatchesRef = useRef([]);
   const contextWindowRef = useRef(
     AVAILABLE_MODELS.find((m) => m.id === MODEL_ID)?.contextWindow ?? 4096
   );
@@ -251,9 +234,16 @@ export function useLLM() {
 
     const { onPlaceholder, onChunk, onComplete, onError, onCompact } = callbacks;
 
-    const { history: compacted, compacted: wasCompacted, summary } = await compactHistory(historyRef.current, engineRef.current, contextWindowRef.current);
+    const { history: compacted, compacted: wasCompacted, summary, firstSurvivedOrigIdx } = await compactHistory(historyRef.current, engineRef.current, contextWindowRef.current);
     historyRef.current = compacted;
-    if (wasCompacted) onCompact?.(summary);
+    if (wasCompacted) {
+      onCompact?.(summary);
+      // Rebase entryBatchesRef: drop batches that were summarized, shift survivors.
+      // After compaction the kept messages start at index 3 (system + 2 synthetic summary messages).
+      entryBatchesRef.current = entryBatchesRef.current
+        .filter((b) => b.histIdx >= firstSurvivedOrigIdx)
+        .map((b) => ({ ...b, histIdx: b.histIdx - firstSurvivedOrigIdx + 3 }));
+    }
 
     historyRef.current.push({ role: "user", content: userMessage });
     console.debug("[YCDA] Prompt →", userMessage);
@@ -298,15 +288,20 @@ export function useLLM() {
           continue;
         }
 
+        const assistantHistIdx = historyRef.current.length;
         historyRef.current.push({ role: "assistant", content: finalMessage });
         committed = true;
-        const { entries, newChars, killedNames, revivedNames, dispositionChanges } = parseGMResponse(finalMessage);
-        console.debug("[YCDA] Parsed entries →", entries);
-        if (newChars.length > 0)          console.debug("[YCDA] New characters →", newChars);
-        if (killedNames.length > 0)       console.debug("[YCDA] Killed →", killedNames);
-        if (revivedNames.length > 0)      console.debug("[YCDA] Revived →", revivedNames);
-        if (dispositionChanges.length > 0) console.debug("[YCDA] Disposition changes →", dispositionChanges);
-        onComplete(STREAMING_ENTRY_ID, entries, newChars, killedNames, revivedNames, dispositionChanges);
+        const { entries, newChars } = parseGMResponse(finalMessage);
+        // Record batch so pruneEntries can find and update this history message later.
+        entryBatchesRef.current.push({
+          histIdx: assistantHistIdx,
+          items: entries.map((e) => ({ id: e.id, raw: e._raw ?? e.text })),
+        });
+        // Strip internal _raw field before handing entries to the app.
+        const cleanEntries = entries.map(({ _raw, ...rest }) => rest);
+        console.debug("[YCDA] Parsed entries →", cleanEntries);
+        if (newChars.length > 0) console.debug("[YCDA] New characters →", newChars);
+        onComplete(STREAMING_ENTRY_ID, cleanEntries, newChars);
         return;
       }
 
@@ -332,6 +327,44 @@ export function useLLM() {
 
   const setSystemPrompt = useCallback((prompt) => {
     historyRef.current = [{ role: "system", content: prompt }];
+    entryBatchesRef.current = [];
+  }, []);
+
+  // Remove entry IDs from LLM history. If all entries of a turn are removed,
+  // that user+assistant pair is spliced out entirely. Partial removals rebuild
+  // the assistant message from the surviving raw lines.
+  const pruneEntries = useCallback((removedIds) => {
+    const removedSet = new Set(removedIds);
+    const toRemoveHistIdxs = new Set();
+
+    entryBatchesRef.current = entryBatchesRef.current
+      .map((batch) => {
+        const remaining = batch.items.filter((item) => !removedSet.has(item.id));
+        if (remaining.length === batch.items.length) return batch; // unaffected
+
+        if (remaining.length === 0) {
+          toRemoveHistIdxs.add(batch.histIdx);
+          return null; // mark for full removal
+        }
+
+        // Partial removal — rebuild assistant message from surviving lines
+        historyRef.current[batch.histIdx].content = remaining.map((i) => i.raw).join("\n");
+        return { ...batch, items: remaining };
+      })
+      .filter(Boolean);
+
+    if (toRemoveHistIdxs.size === 0) return;
+
+    // Splice user+assistant pairs highest-index-first to avoid index drift
+    const sortedIdxs = [...toRemoveHistIdxs].sort((a, b) => b - a);
+    for (const histIdx of sortedIdxs) {
+      historyRef.current.splice(histIdx - 1, 2); // user at histIdx-1, assistant at histIdx
+      // Shift all subsequent batch indices down by 2
+      entryBatchesRef.current = entryBatchesRef.current.map((b) => ({
+        ...b,
+        histIdx: b.histIdx > histIdx ? b.histIdx - 2 : b.histIdx,
+      }));
+    }
   }, []);
 
   const cancel = useCallback(() => {
@@ -356,5 +389,5 @@ export function useLLM() {
     }
   }, []);
 
-  return { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel };
+  return { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel, pruneEntries };
 }

@@ -46,7 +46,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel } = useLLM();
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel, pruneEntries } = useLLM();
 
   const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
   const isDark = themeMode === "dark";
@@ -122,55 +122,15 @@ function App() {
     if (truly_new.length) setNpcs((prev) => [...prev, ...truly_new]);
   };
 
-  const markKilled = (killedNames) => {
-    const killed = new Set(killedNames.map((n) => n.toLowerCase()));
-    setCharacters((prev) => prev.map((c) => killed.has(c.name.toLowerCase()) ? { ...c, dead: true } : c));
-    setNpcs((prev) => prev.map((n) => killed.has(n.name.toLowerCase()) ? { ...n, dead: true } : n));
-  };
-
-  const markRevived = (revivedNames) => {
-    const revived = new Set(revivedNames.map((n) => n.toLowerCase()));
-    setCharacters((prev) => prev.map((c) => revived.has(c.name.toLowerCase()) ? { ...c, dead: false } : c));
-    setNpcs((prev) => prev.map((n) => revived.has(n.name.toLowerCase()) ? { ...n, dead: false } : n));
-  };
-
-  const applyDispositionChanges = (changes) => {
-    changes.forEach(({ name, disposition }) => {
-      const key = name.toLowerCase();
-      setCharacters((prev) => prev.map((c) => c.name.toLowerCase() === key && !c.isPlayer ? { ...c, disposition } : c));
-      setNpcs((prev) => prev.map((n) => n.name.toLowerCase() === key ? { ...n, disposition } : n));
-    });
-  };
-
   const callGenerate = (userMessage) => {
     if (!isLLMReady) return;
-    const prevCharacters = characters;
-    const prevNpcs = npcs;
     generate(userMessage, {
       onPlaceholder: (id) => setEntries((prev) => [...prev, { id, type: "story", text: "…" }]),
       onChunk: (id, partial) => setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, text: partial } : e))),
-      onComplete: (id, parsedEntries, newChars, killedNames, revivedNames, dispositionChanges) => {
-        const dispEntries = dispositionChanges
-          .filter(({ name, disposition }) => {
-            const isPlayer = prevCharacters.some((c) => c.isPlayer && c.name.toLowerCase() === name.toLowerCase());
-            if (isPlayer) return false;
-            const current = prevNpcs.find((n) => n.name.toLowerCase() === name.toLowerCase());
-            return !current || current.disposition !== disposition;
-          })
-          .map(({ name, disposition }) => ({
-            id: Date.now() + Math.random(),
-            type: "story",
-            source: "disposition",
-            character: name,
-            disposition,
-          }));
-        const allEntries = [...parsedEntries, ...dispEntries];
-        setEntries((prev) => [...prev.filter((e) => e.id !== id), ...allEntries]);
-        setLastRun({ userMessage, aiEntryIds: new Set(allEntries.map((e) => e.id)), prevCharacters, prevNpcs });
+      onComplete: (id, parsedEntries, newChars) => {
+        setEntries((prev) => [...prev.filter((e) => e.id !== id), ...parsedEntries]);
+        setLastRun({ userMessage, aiEntryIds: new Set(parsedEntries.map((e) => e.id)) });
         mergeNewChars(newChars);
-        if (killedNames.length) markKilled(killedNames);
-        if (revivedNames.length) markRevived(revivedNames);
-        if (dispositionChanges.length) applyDispositionChanges(dispositionChanges);
       },
       onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
       onCompact: (summary) => setEntries((prev) => [...prev, { id: Date.now() + Math.random(), type: "story", source: "compact", text: summary }]),
@@ -191,8 +151,6 @@ function App() {
   const handleRerun = () => {
     if (!lastRun || !isLLMReady) return;
     setEntries((prev) => prev.filter((e) => !lastRun.aiEntryIds.has(e.id)));
-    setCharacters(lastRun.prevCharacters);
-    setNpcs(lastRun.prevNpcs);
     setLastRun(null);
     revertLast();
     callGenerate(lastRun.userMessage);
@@ -237,10 +195,10 @@ function App() {
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
-          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} onRevive={(name) => markRevived([name])} />
+          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} />
 
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default" }}>
-            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} onRemoveEntry={(id) => setEntries((prev) => prev.filter((e) => e.id !== id))} />
+            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => prev.filter((e) => e.id !== id)); }} />
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {
