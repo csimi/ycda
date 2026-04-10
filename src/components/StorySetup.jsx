@@ -14,6 +14,8 @@ export default function StorySetup({
   llmProgress,
   llmModelId,
   onSwitchModel,
+  pregenerationEnabled,
+  onTogglePregeneration,
 }) {
   const player = story.characters?.find((c) => c.isPlayer);
 
@@ -37,6 +39,8 @@ export default function StorySetup({
         llmProgress={llmProgress}
         llmModelId={llmModelId}
         onSwitchModel={onSwitchModel}
+        pregenerationEnabled={pregenerationEnabled}
+        onTogglePregeneration={onTogglePregeneration}
       />
 
       <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 3 }}>

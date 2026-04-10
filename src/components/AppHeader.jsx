@@ -5,9 +5,10 @@ import {
 } from "@mui/material";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LLMStatusBar from "./LLMStatusBar";
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
@@ -69,6 +70,26 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
         )}
         <Box sx={{ flexGrow: 1 }} />
         <LLMStatusBar status={llmStatus} modelId={llmModelId} onSwitchModel={onSwitchModel} />
+        {onTogglePregeneration != null && (
+          <Tooltip
+            title={
+              <Box>
+                <Box sx={{ fontWeight: 600, mb: 0.3 }}>
+                  Narrator briefing: {pregenerationEnabled ? "on" : "off"}
+                </Box>
+                <Box sx={{ fontSize: "0.75rem", color: "inherit", opacity: 0.85 }}>
+                  When on, the AI reads the story description before you start and writes a private briefing for itself — giving it better atmosphere, character voice, and narrative focus. Adds ~5–10 s at story load.
+                </Box>
+              </Box>
+            }
+            arrow
+            placement="bottom-end"
+          >
+            <IconButton onClick={onTogglePregeneration} size="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }}>
+              <AutoAwesomeIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
           <IconButton onClick={onToggleTheme} size="small" sx={{ color: "text.secondary" }}>
             {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}

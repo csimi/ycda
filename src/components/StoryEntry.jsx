@@ -62,7 +62,7 @@ const typeConfig = {
   },
 };
 
-export default function StoryEntry({ entry, isDark }) {
+export default function StoryEntry({ entry, isDark, isPlayer }) {
   const cfg = typeConfig[entry.type];
   const colors = isDark ? cfg.dark : cfg.light;
   const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
@@ -191,19 +191,34 @@ export default function StoryEntry({ entry, isDark }) {
     );
   }
 
+  const playerSay = {
+    dark:  { bubbleBg: "rgba(251,191,36,0.15)", textColor: "#fef3c7", labelColor: "rgba(251,191,36,0.9)", border: "1px solid rgba(251,191,36,0.4)" },
+    light: { bubbleBg: "rgba(251,191,36,0.18)", textColor: "#78350f", labelColor: "#b45309",             border: "1px solid rgba(180,130,20,0.45)" },
+  };
+  const playerDo = {
+    dark:  { bubbleBg: "rgba(251,191,36,0.09)", textColor: "#fde68a", labelColor: "rgba(251,191,36,0.8)", border: "1px solid rgba(251,191,36,0.28)" },
+    light: { bubbleBg: "rgba(251,191,36,0.10)", textColor: "#92400e", labelColor: "#b45309",              border: "1px solid rgba(180,130,20,0.3)" },
+  };
+
+  const activeColors = isPlayer
+    ? (entry.type === "say" ? (isDark ? playerSay.dark : playerSay.light) : (isDark ? playerDo.dark : playerDo.light))
+    : colors;
+  const activeBorder = isPlayer ? activeColors.border : border;
+  const activeBubbleBg = activeColors.bubbleBg;
+
   return (
     <Box sx={{ px: 3, py: 0.8, display: "flex", justifyContent: "flex-start" }}>
       <Box sx={{ maxWidth: "75%" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.4 }}>
-          <Box sx={{ color: colors.labelColor, display: "flex", alignItems: "center" }}>{cfg.icon}</Box>
-          <Typography sx={{ fontSize: "0.7rem", color: colors.labelColor, fontWeight: 600 }}>
+          <Box sx={{ color: activeColors.labelColor, display: "flex", alignItems: "center" }}>{cfg.icon}</Box>
+          <Typography sx={{ fontSize: "0.7rem", color: activeColors.labelColor, fontWeight: 600 }}>
             {entry.character} · {cfg.label}
           </Typography>
         </Box>
         <Box
           sx={{
-            bgcolor: colors.bubbleBg,
-            border,
+            bgcolor: activeBubbleBg,
+            border: activeBorder,
             borderRadius: entry.type === "say" ? "16px 16px 16px 4px" : "12px",
             px: cfg.px,
             py: 1,
@@ -211,7 +226,7 @@ export default function StoryEntry({ entry, isDark }) {
         >
           <Typography
             sx={{
-              color: colors.textColor,
+              color: activeColors.textColor,
               fontSize: "0.9rem",
               lineHeight: 1.6,
               fontStyle: cfg.italic ? "italic" : "normal",

@@ -124,7 +124,7 @@ function UploadCard({ onUpload, isDark }) {
   );
 }
 
-export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel }) {
+export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration }) {
   return (
     <Box
       sx={{
@@ -134,7 +134,7 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
         flexDirection: "column",
       }}
     >
-      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} />
+      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} />
 
       {/* Hero */}
       <Box sx={{ px: 4, pt: 6, pb: 3, maxWidth: 760, mx: "auto", width: "100%", textAlign: "center" }}>

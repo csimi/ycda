@@ -5,10 +5,11 @@ import CheckIcon from "@mui/icons-material/Check";
 import { AVAILABLE_MODELS } from "../hooks/useLLM";
 
 const STATUS_CONFIG = {
-  loading:    { label: "Loading AI…", color: "default" },
-  ready:      { label: "AI ready",    color: "success" },
-  generating: { label: "Generating…", color: "info" },
-  error:      { label: "AI error",    color: "error" },
+  loading:      { label: "Loading AI…",      color: "default" },
+  ready:        { label: "AI ready",          color: "success" },
+  generating:   { label: "Generating…",       color: "info" },
+  initializing: { label: "Preparing story…",  color: "info" },
+  error:        { label: "AI error",           color: "error" },
 };
 
 export default function LLMStatusBar({ status, modelId, onSwitchModel }) {

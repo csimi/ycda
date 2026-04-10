@@ -3,7 +3,7 @@ import { Box, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import StoryEntry from "./StoryEntry";
 
-export default function StoryPanel({ entries, isDark, lastRunIds, onRemoveEntry }) {
+export default function StoryPanel({ entries, isDark, lastRunIds, playerName, onRemoveEntry }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function StoryPanel({ entries, isDark, lastRunIds, onRemoveEntry 
               },
             }}
           >
-            <StoryEntry entry={entry} isDark={isDark} />
+            <StoryEntry entry={entry} isDark={isDark} isPlayer={!!playerName && entry.character === playerName} />
             <IconButton
               className="entry-remove"
               size="small"

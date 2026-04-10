@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Box, CssBaseline } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CharacterPanel from "./components/CharacterPanel";
@@ -40,13 +40,15 @@ function formatUserAction(inputMode, text, characterName) {
 
 function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
+  const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
   const [activeStory, setActiveStory] = useState(null);
   const [pendingStory, setPendingStory] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries } = useLLM();
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries } = useLLM();
+  const pendingPostInitRef = useRef(null);
 
   const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
   const isDark = themeMode === "dark";
@@ -58,6 +60,21 @@ function App() {
     setThemeMode(next);
     localStorage.setItem("theme", next);
   };
+
+  const togglePregeneration = () => {
+    const next = !pregenerationEnabled;
+    setPregenerationEnabled(next);
+    localStorage.setItem("pregen", String(next));
+  };
+
+  // Run deferred post-init (pregen + seed) once the engine finishes loading.
+  useEffect(() => {
+    if (status === "ready" && pendingPostInitRef.current) {
+      const fn = pendingPostInitRef.current;
+      pendingPostInitRef.current = null;
+      fn();
+    }
+  }, [status]);
 
   const handleSelectStory = (story, setupAnswers = {}) => {
     const oldPlayerName = story.characters?.find((c) => c.isPlayer)?.name;
@@ -93,6 +110,25 @@ function App() {
     setLastRun(null);
     setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext));
     setRoster([...chars.map((c) => c.name), ...initialNpcs.map((n) => n.name)]);
+
+    const runPostInit = async () => {
+      if (pregenerationEnabled) {
+        await pregenerateContext(
+          { description: story.description ?? "", characters: chars, npcs: initialNpcs, extraContext },
+          {
+            onDone: (briefing) => appendToSystemPrompt(`\n\nSTORY CONTEXT:\n${briefing}`),
+            onError: (err) => console.warn("[YCDA] Pre-gen failed, continuing without briefing:", err),
+          }
+        );
+      }
+      seedInitialEntries(initialEntries);
+    };
+
+    if (status === "ready") {
+      runPostInit();
+    } else {
+      pendingPostInitRef.current = runPostInit;
+    }
   };
 
   const handlePlayStory = (story) => {
@@ -189,7 +225,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} />
+        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} />
       </ThemeProvider>
     );
   }
@@ -209,6 +245,8 @@ function App() {
           llmProgress={progress}
           llmModelId={modelId}
           onSwitchModel={switchModel}
+          pregenerationEnabled={pregenerationEnabled}
+          onTogglePregeneration={togglePregeneration}
         />
       </ThemeProvider>
     );
@@ -219,14 +257,14 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default", overflow: "hidden" }}>
-        <AppHeader isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} storyTitle={activeStory.title} onHome={() => setActiveStory(null)} />
+        <AppHeader isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} storyTitle={activeStory.title} onHome={() => setActiveStory(null)} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} />
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
           <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} />
 
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default" }}>
-            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => prev.filter((e) => e.id !== id)); }} />
+            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} playerName={playerCharacter?.name} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => prev.filter((e) => e.id !== id)); }} />
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {
@@ -239,7 +277,7 @@ function App() {
               canRerun={!!lastRun && isLLMReady}
               canRemoveLast={entries.length > 0}
               isDark={isDark}
-              disabled={isGenerating || status === "loading"}
+              disabled={isGenerating || status === "loading" || status === "initializing"}
               isGenerating={isGenerating}
             />
           </Box>

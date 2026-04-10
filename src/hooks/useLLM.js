@@ -57,7 +57,7 @@ async function compactHistory(history, engine, contextWindow) {
   // Build a plain-text transcript of the messages to summarize
   const transcript = toSummarize.map((m) => {
     if (m.role === "user")      return `Player: ${m.content}`;
-    if (m.role === "assistant") return `GM: ${m.content}`;
+    if (m.role === "assistant") return `Narrator: ${m.content}`;
     return "";
   }).filter(Boolean).join("\n\n");
 
@@ -151,7 +151,7 @@ function extractNameAndText(rawName, afterBracket) {
   return { name: parts[0], text: parts[parts.length - 1] };
 }
 
-function parseGMResponse(text, roster = []) {
+function parseNarratorResponse(text, roster = []) {
   const entries = [];
   const newChars = [];
   const lines = text.split("\n");
@@ -234,6 +234,30 @@ function parseGMResponse(text, roster = []) {
   }
 
   return { entries, newChars };
+}
+
+function buildBriefingPayload({ description, characters, npcs, extraContext }) {
+  const lines = [];
+  if (description) lines.push(`Story premise: ${description}`);
+  if (characters?.length) {
+    lines.push("\nParty:");
+    for (const c of characters) {
+      lines.push(`  ${c.name} (${c.class ?? c.role ?? "character"}${c.gender ? `, ${c.gender}` : ""})`);
+    }
+  }
+  if (npcs?.length) {
+    lines.push("\nNPCs:");
+    for (const n of npcs) {
+      lines.push(`  ${n.name} — ${n.role}${n.note ? `. ${n.note}` : ""}`);
+    }
+  }
+  if (extraContext?.length) {
+    lines.push("\nExtra context:");
+    for (const { label, value } of extraContext) {
+      lines.push(`  ${label}: ${value}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 export function useLLM() {
@@ -339,7 +363,7 @@ export function useLLM() {
         const assistantHistIdx = historyRef.current.length;
         historyRef.current.push({ role: "assistant", content: finalMessage });
         committed = true;
-        const { entries, newChars } = parseGMResponse(finalMessage, rosterRef.current);
+        const { entries, newChars } = parseNarratorResponse(finalMessage, rosterRef.current);
         // Record batch so pruneEntries can find and update this history message later.
         entryBatchesRef.current.push({
           histIdx: assistantHistIdx,
@@ -441,5 +465,49 @@ export function useLLM() {
     }
   }, []);
 
-  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries };
+  const pregenerateContext = useCallback(async ({ description, characters, npcs, extraContext }, callbacks) => {
+    if (statusRef.current !== "ready") return;
+    setStatus("initializing"); statusRef.current = "initializing";
+    try {
+      const result = await engineRef.current.chat.completions.create({
+        messages: [
+          { role: "system", content: "You are a narrator briefing assistant. Given a story premise, produce a compact narrator briefing of 200–250 tokens. Cover: atmosphere and tone, each named character's motivation, the central tension, and 2–3 key world facts. Plain prose only — no tags, no bullet points." },
+          { role: "user", content: buildBriefingPayload({ description, characters, npcs, extraContext }) },
+        ],
+        temperature: 0.4, top_p: 0.9,
+      });
+      const briefing = result.choices[0].message.content.trim();
+      console.debug("[YCDA] Narrator briefing →", briefing);
+      callbacks.onDone(briefing);
+    } catch (err) {
+      callbacks.onError(err);
+    } finally {
+      setStatus("ready"); statusRef.current = "ready";
+    }
+  }, []);
+
+  const appendToSystemPrompt = useCallback((extra) => {
+    if (historyRef.current[0]?.role === "system") {
+      historyRef.current[0].content += extra;
+    }
+  }, []);
+
+  // Seed history with the story's static opening entries so the LLM treats them
+  // as its own prior output and maintains continuity from turn one.
+  const seedInitialEntries = useCallback((entries) => {
+    if (!entries?.length) return;
+    const lines = entries.map((e) => {
+      if (e.type === "story" && !e.source) return `[STORY] ${e.text}`;
+      if (e.type === "say")  return `[SAY:${e.character}] ${e.text}`;
+      if (e.type === "do")   return `[DO:${e.character}] ${e.text}`;
+      return null;
+    }).filter(Boolean);
+    if (!lines.length) return;
+    historyRef.current.push(
+      { role: "user",      content: "Begin the story." },
+      { role: "assistant", content: lines.join("\n") }
+    );
+  }, []);
+
+  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries };
 }
