@@ -7,9 +7,13 @@ import {
   CardActions,
   Button,
   Grid,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { builtinStories } from "../data/stories";
 import AppHeader from "./AppHeader";
 
@@ -124,7 +128,7 @@ function UploadCard({ onUpload, isDark }) {
   );
 }
 
-export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory }) {
+export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory, saves, onLoadSave, onDeleteSave, onOpenSavesDialog }) {
   return (
     <Box
       sx={{
@@ -134,7 +138,7 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
         flexDirection: "column",
       }}
     >
-      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} />
+      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} onOpenSaves={onOpenSavesDialog} />
 
       {/* Hero */}
       <Box sx={{ px: 4, pt: 6, pb: 3, maxWidth: 760, mx: "auto", width: "100%", textAlign: "center" }}>
@@ -145,6 +149,63 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
           Pick a story to begin, or upload your own adventure file.
         </Typography>
       </Box>
+
+      {/* Saved games section */}
+      {saves?.length > 0 && (
+        <Box sx={{ px: 4, pb: 2, maxWidth: 900, mx: "auto", width: "100%" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+            <BookmarkIcon sx={{ fontSize: 18, color: "primary.main" }} />
+            <Typography sx={{ fontWeight: 700, fontSize: "0.9rem" }}>Continue a saved game</Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {saves.slice(0, 3).map((save) => (
+              <Box
+                key={save.id}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  px: 2,
+                  py: 1.2,
+                  borderRadius: 2,
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                  bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#ffffff",
+                }}
+              >
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>{save.storyTitle}</Typography>
+                  {save.previewText && (
+                    <Typography sx={{ color: "text.secondary", fontSize: "0.75rem", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {save.previewText}
+                    </Typography>
+                  )}
+                </Box>
+                <Typography sx={{ color: "text.secondary", fontSize: "0.72rem", flexShrink: 0 }}>
+                  {new Date(save.savedAt).toLocaleString()}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => onLoadSave(save)}
+                  sx={{ textTransform: "none", fontSize: "0.75rem", fontWeight: 600, borderRadius: 1.5, flexShrink: 0 }}
+                >
+                  Load
+                </Button>
+                <Tooltip title="Delete save">
+                  <IconButton size="small" onClick={() => onDeleteSave(save.id)} sx={{ color: "text.secondary", flexShrink: 0 }}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            ))}
+          </Box>
+          {saves.length > 3 && (
+            <Button size="small" onClick={onOpenSavesDialog} sx={{ textTransform: "none", mt: 1, fontSize: "0.78rem" }}>
+              View all {saves.length} saves…
+            </Button>
+          )}
+        </Box>
+      )}
 
       {/* Story grid */}
       <Box sx={{ px: 4, pb: 6, maxWidth: 900, mx: "auto", width: "100%" }}>

@@ -6,14 +6,14 @@ import { distance } from "fastest-levenshtein";
 const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
 
 // Tokens reserved for the model's own output
-const GENERATION_BUDGET = 256;
+const GENERATION_BUDGET = 384;
 // Compact when history exceeds this fraction of available context
 const COMPACTION_RATIO = 0.90;
 // After compaction, fill history to only this fraction — leaves headroom so the
 // next compaction doesn't trigger immediately on the following turn
 const POST_COMPACT_RATIO = 0.65;
 // Estimated token overhead for the synthetic summary exchange injected after compaction
-const SUMMARY_OVERHEAD = 250;
+const SUMMARY_OVERHEAD = 256;
 
 // Per-message overhead: role header + framing tokens (rough estimate)
 const MSG_OVERHEAD = 4;
@@ -338,6 +338,7 @@ export function useLLM() {
           messages: historyRef.current,
           stream_options: { include_usage: true },
           repetition_penalty: 1.2,
+          max_tokens: GENERATION_BUDGET,
         });
 
         for await (const chunk of completion) {
@@ -509,5 +510,15 @@ export function useLLM() {
     );
   }, []);
 
-  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries };
+  const getSnapshot = useCallback(() => ({
+    history:      historyRef.current,
+    entryBatches: entryBatchesRef.current,
+  }), []);
+
+  const restoreSnapshot = useCallback(({ history, entryBatches }) => {
+    historyRef.current      = history;
+    entryBatchesRef.current = entryBatches;
+  }, []);
+
+  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
 }

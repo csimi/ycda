@@ -1,0 +1,79 @@
+{
+  "id": "isekai-reborn",
+  "title": "Reborn in Astralis",
+  "description": "You were just a regular high school student in Tokyo — until a blinding light swallowed you whole. Now you stand in a marble throne room, surrounded by robed priests and a desperate king, declared the Hero prophesied to slay the Demon Lord. Classic isekai adventure awaits.",
+  "characters": [
+    {
+      "id": 1,
+      "name": "Kenji",
+      "class": "Hero (Isekai'd)",
+      "avatar": "🧑‍🎓",
+      "gender": "Male",
+      "isPlayer": true
+    }
+  ],
+  "npcs": [
+    {
+      "id": 101,
+      "name": "Seraphina",
+      "role": "Royal Summoner",
+      "avatar": "👸",
+      "gender": "Female",
+      "disposition": "friendly",
+      "note": "Princess, third daughter of King Aldric. She performed the Hero Summoning ritual and feels personally responsible for Kenji's fate. Knowledgeable about magic and this world's lore."
+    },
+    {
+      "id": 102,
+      "name": "Aldric",
+      "role": "King of Astralis",
+      "avatar": "👑",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "King of Astralis. A weary ruler whose kingdom has been shrinking for a decade under the Demon Lord's advance. Pragmatic — he needs a Hero, not a friend."
+    },
+    {
+      "id": 103,
+      "name": "Davan",
+      "role": "Royal Knight",
+      "avatar": "⚔️",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "Sir Davan, appointed as Kenji's escort and combat instructor. Gruff and skeptical that a scrawny otherworlder can be the prophesied Hero, but duty-bound to protect him."
+    }
+  ],
+  "entries": [
+    {
+      "id": 1,
+      "type": "story",
+      "text": "White light. Then cold marble under your knees.\n\nYour school bag is still on your shoulder. Your half-eaten convenience-store onigiri is still in your hand. One moment you were crossing the crosswalk near Shibuya Station, and now — this.\n\nYou're kneeling at the centre of a vast summoning circle etched in silver on a throne room floor. Dozens of candles gutter in the sudden draft. Robed priests stagger back in exhaustion. And before you, on a stepped dais, sits an old man in heavy ceremonial armour with a crown of hammered gold."
+    },
+    {
+      "id": 2,
+      "type": "say",
+      "character": "Aldric",
+      "text": "It worked. The Hero has come."
+    },
+    {
+      "id": 3,
+      "type": "story",
+      "text": "A young woman in silver robes steps out from behind the circle's edge. She has the same sharp eyes as the king and ink-stained fingers that suggest long nights of study. She bows — to you."
+    },
+    {
+      "id": 4,
+      "type": "say",
+      "character": "Seraphina",
+      "text": "Forgive the abrupt summons. I am Seraphina, third princess of Astralis. You have been called from your world by the Rite of the Undying Hero. You are... in another world entirely. I know this must be overwhelming."
+    },
+    {
+      "id": 5,
+      "type": "story",
+      "text": "A Status Window shimmers into existence in your field of vision — faint as a reflection in glass, but unmistakably real.\n\n▸ Name: Kenji\n▸ Class: Hero\n▸ Level: 1\n▸ Unique Skill: [Echo Mastery] — Copy any skill you witness once.\n\nYou blink. The window stays.\n\nA heavy boot scrapes the floor. A knight with a trimmed beard and a scar across his chin crosses his arms and looks you over like livestock at market."
+    },
+    {
+      "id": 6,
+      "type": "say",
+      "character": "Davan",
+      "text": "This is the Hero? He's holding... a rice ball."
+    }
+  ]
+}

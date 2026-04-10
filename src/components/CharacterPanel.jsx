@@ -116,7 +116,7 @@ function NpcCard({ npc, isDark, isNew }) {
       </Box>
       {note && (
         <Typography
-          sx={{ fontSize: "0.62rem", color: "rgba(148,163,184,0.7)", fontStyle: "italic", lineHeight: 1.4 }}
+          sx={{ fontSize: "0.62rem", color: modeColor(isDark, "rgba(148,163,184,0.7)", "rgba(60,60,80,0.75)"), fontStyle: "italic", lineHeight: 1.4 }}
         >
           {note}
         </Typography>

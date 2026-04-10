@@ -6,9 +6,10 @@ import {
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import SaveIcon from "@mui/icons-material/Save";
 import LLMStatusBar from "./LLMStatusBar";
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
@@ -70,6 +71,13 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
         )}
         <Box sx={{ flexGrow: 1 }} />
         <LLMStatusBar status={llmStatus} modelId={llmModelId} onSwitchModel={onSwitchModel} />
+        {onOpenSaves && (
+          <Tooltip title="Saved games">
+            <IconButton onClick={onOpenSaves} size="small" sx={{ color: "text.secondary" }}>
+              <SaveIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         {onTogglePregeneration != null && (
           <Tooltip
             title={

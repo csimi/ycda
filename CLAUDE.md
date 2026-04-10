@@ -6,7 +6,9 @@ Text-based CYOA game powered by an in-browser LLM (web-llm). React + Vite + Mate
 
 - **Vite + React 19** — `npm run dev` to start, `npm run build` to build
 - **Material UI v9** (`@mui/material`, `@emotion/react/styled`, `@mui/icons-material`)
-- **`@mlc-ai/web-llm`** — runs `Llama-3.2-3B-Instruct-q4f16_1-MLC` in-browser via WebGPU. Model weights (~1.8 GB) download once and are cached in the browser's Cache API.
+- **`@mlc-ai/web-llm`** — runs LLMs in-browser via WebGPU. Default model: `Llama-3.1-8B-Instruct-q4f16_1-MLC` (~4.5 GB). Model weights download once and are cached in the browser's Cache API.
+- **`tokenx`** — token estimation for context management
+- **`fastest-levenshtein`** — fuzzy character name matching in SAY/DO tags
 - `optimizeDeps: { exclude: ["@mlc-ai/web-llm"] }` in `vite.config.js` is required — web-llm uses internal dynamic imports that Vite's pre-bundler would mangle.
 
 ## Project layout
@@ -14,6 +16,7 @@ Text-based CYOA game powered by an in-browser LLM (web-llm). React + Vite + Mate
 ```
 stories/                    # Story JSON files (auto-loaded via import.meta.glob)
   ember-compass.json
+  isekai-reborn.json
 
 src/
   App.jsx                   # Root: theme, story selection state, all game state
@@ -21,32 +24,45 @@ src/
   index.css
 
   components/
-    StorySelect.jsx         # Story library screen shown before game starts
+    AppHeader.jsx           # Top bar: logo, story title, home button, LLM status, save, pregen toggle, theme toggle
+    StorySelect.jsx         # Story library screen shown before game starts; upload + saves sections
+    StorySetup.jsx          # Pre-game character customization form (shown when story.setup is defined)
+    SavesDialog.jsx         # Save / load dialog (used from both StorySelect and in-game)
     CharacterPanel.jsx      # Left sidebar: party + NPC cards
     StoryPanel.jsx          # Scrollable story feed
-    StoryEntry.jsx          # Renders a single entry (story / say / do / player note / continue)
-    InputBar.jsx            # Bottom bar: Continue, Re-run, mode toggle, text input
-    LLMStatusBar.jsx        # Header chip: loading progress / ready / generating / error
+    StoryEntry.jsx          # Renders a single entry (story / say / do / player note / continue / compact)
+    InputBar.jsx            # Bottom bar: Continue, Re-run, Remove Last, Cancel, mode toggle, text input
+    LLMStatusBar.jsx        # Model status chip + model switcher dropdown (embedded in AppHeader)
 
   data/
-    systemPrompt.js         # buildSystemPrompt(characters, npcs) → string
+    systemPrompt.js         # buildSystemPrompt(characters, npcs, extraContext?) → string
     stories.js              # import.meta.glob loader for stories/*.json
     characters.js           # Static fallback character/NPC data (not used at runtime)
     story.js                # Static fallback initial entries (not used at runtime)
 
   hooks/
-    useLLM.js               # Engine lifecycle, streaming, history, parser
+    useLLM.js               # Engine lifecycle, streaming, history, compaction, parser
+    useSaves.js             # React hook: saves state, saveGame, deleteSave (wraps useIndexedDB)
+    useIndexedDB.js         # Low-level IndexedDB wrapper: listSaves, saveGame, deleteSave
 ```
 
 ## Story JSON schema
 
-Stored in `stories/*.json`. Any file dropped there appears on the selection screen automatically.
+Stored in `stories/*.json`. Any file dropped there appears on the selection screen automatically. Users can also upload `.json` files at runtime via the Upload card.
 
 ```jsonc
 {
   "id": "unique-id",
   "title": "Story Title",
   "description": "One-paragraph blurb shown on selection card.",
+
+  // Optional: if present, a setup form is shown before the game starts.
+  "setup": [
+    { "field": "name",       "label": "Your character's name" },
+    { "field": "background", "label": "Your background",      "multiline": true }
+    // field matches a character property OR becomes extra context in the system prompt
+  ],
+
   "characters": [
     {
       "id": 1,
@@ -69,22 +85,26 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
     }
   ],
   "entries": [
-    { "id": 1, "type": "story", "text": "Narration..." },
+    // ${field} placeholders are interpolated from setup answers at story start
+    { "id": 1, "type": "story", "text": "Welcome, ${name}..." },
     { "id": 3, "type": "say", "character": "Aelindra", "text": "Dialogue..." },
     { "id": 5, "type": "do",  "character": "Aelindra", "text": "Action..." }
   ]
 }
 ```
 
+`setup` fields that match character properties (`name`, `gender`, `class`, `avatar`, `disposition`) are merged into the player character object. All other fields are appended to the system prompt as a `PLAYER BACKGROUND` block.
+
 ## Entry types
 
-| `type`    | `source`     | Rendered as |
-|-----------|-------------|-------------|
-| `story`   | *(absent)*  | Serif italic narrator text |
-| `story`   | `"user"`    | Amber dashed "Player note" card |
-| `story`   | `"continue"`| Slim horizontal divider with `▶ continue` label |
-| `say`     | —           | Indigo speech bubble, left-aligned |
-| `do`      | —           | Green action bubble, left-aligned, italic |
+| `type`    | `source`      | Rendered as |
+|-----------|--------------|-------------|
+| `story`   | *(absent)*   | Serif italic narrator text |
+| `story`   | `"user"`     | Amber dashed "Player note" card |
+| `story`   | `"continue"` | Slim horizontal divider with `▶ continue` label |
+| `story`   | `"compact"`  | Dimmed summary card inserted after context compaction |
+| `say`     | —            | Indigo speech bubble, left-aligned |
+| `do`      | —            | Green action bubble, left-aligned, italic |
 
 ## LLM output format
 
@@ -95,56 +115,122 @@ The AI Game Master must respond using only these tagged lines:
 [SAY:CharName] dialogue without quotes
 [DO:CharName] action without asterisks
 [NEW_CHAR:name|role|gender|disposition|note]
-[KILL:CharName]
 ```
 
-- `[NEW_CHAR]` — use sparingly, only for named recurring characters. Parser deduplicates against the full roster (party + NPCs) using exact and prefix matching to block variants like "Forest Guardian's Reflection" when "Forest Guardian" already exists.
-- `[KILL]` — marks `dead: true` on the matching character or NPC. Dead cards show strikethrough name, greyscale avatar, red border, `💀 Dead` chip, dimmed opacity.
+- `[NEW_CHAR]` — use sparingly, only for named recurring characters. Parser deduplicates against the full roster (party + NPCs) using exact and prefix matching to block variants. Character names in SAY/DO are fuzzy-matched against the roster via Levenshtein distance (tolerance ≤ 2).
+- `[KILL]` tag has been removed. Character death is handled narratively.
+- Refusal detection (`isRefusal`) triggers a retry loop: if the model outputs no valid tags or uses refusal phrases, `generate` retries the same prompt silently.
 
 ## App state (App.jsx)
 
 ```
-activeStory     — selected story object | null (null = show StorySelect)
-characters      — party array, stateful (supports dead: true)
-npcs            — NPC array, stateful (grows when AI introduces new chars)
-entries         — story feed array
-lastRun         — { userMessage, aiEntryIds: Set } | null  (for Re-run)
-themeMode       — "light" | "dark", persisted to localStorage key "theme"
+activeStory          — selected story object | null (null = show StorySelect)
+pendingStory         — story awaiting setup answers | null (shows StorySetup screen)
+uploadedStories      — user-uploaded stories (session-only, remembered across story plays)
+characters           — party array, stateful
+npcs                 — NPC array, stateful (grows when AI introduces new chars)
+entries              — story feed array
+lastRun              — { userMessage, aiEntryIds: Set } | null  (for Re-run)
+themeMode            — "light" | "dark", persisted to localStorage key "theme"
+pregenerationEnabled — bool, persisted to localStorage key "pregen"
+savesDialogOpen      — bool
+savesDialogMode      — "save" | "load"
 ```
 
-`characters` and `npcs` are initialized from the selected story on `handleSelectStory`. They are lifted to state (not read directly from `activeStory`) so kills and new NPC additions can be applied reactively.
+Screen flow: **StorySelect** → *(if story.setup)* **StorySetup** → **Game**
+
+`characters` and `npcs` are initialized from the selected story on `handleSelectStory`, with setup answers merged in. They are lifted to state so kills and new NPC additions can be applied reactively.
 
 ## useLLM hook
 
 ```js
-const { status, progress, generate, revertLast, setSystemPrompt } = useLLM();
+const {
+  status, progress, modelId,
+  generate, revertLast, cancel,
+  setSystemPrompt, appendToSystemPrompt, seedInitialEntries,
+  setRoster, switchModel,
+  pruneEntries,
+  pregenerateContext,
+  getSnapshot, restoreSnapshot,
+} = useLLM();
 ```
 
-- **status**: `"uninitialized"` → `"loading"` → `"ready"` ↔ `"generating"` | `"error"`
-- **`setSystemPrompt(str)`** — seeds `historyRef` with `[{ role: "system", content }]`. Called after story selection.
-- **`generate(userMessage, callbacks)`** — appends user turn to history, streams response, calls:
+- **status**: `"uninitialized"` → `"loading"` → `"ready"` ↔ `"generating"` | `"initializing"` | `"error"`
+  - `"initializing"` — narrator briefing pre-generation in progress
+- **modelId** — the currently loaded model ID string
+- **`setSystemPrompt(str)`** — seeds `historyRef` with `[{ role: "system", content }]` and resets `entryBatchesRef`.
+- **`appendToSystemPrompt(str)`** — appends text to the existing system message (used by narrator briefing).
+- **`seedInitialEntries(entries)`** — injects the story's opening entries as an initial user+assistant pair in history so the LLM treats them as its own prior output.
+- **`generate(userMessage, callbacks)`** — compacts history if needed, appends user turn, streams response, retries on refusal. Callbacks:
   - `onPlaceholder(id)` — add `…` entry
   - `onChunk(id, partial)` — update placeholder text in place
-  - `onComplete(id, entries, newChars, killedNames)` — replace placeholder, apply side-effects
+  - `onComplete(id, entries, newChars)` — replace placeholder, apply side-effects
   - `onError(err)` — remove placeholder
+  - `onCompact(summary)` — called when context compaction runs; app adds a `"compact"` entry
 - **`revertLast()`** — pops the last user+assistant pair from history (used by Re-run).
-- **`parseGMResponse(text)`** — splits on `\n`, matches tags, returns `{ entries, newChars, killedNames }`. Unrecognised lines fall back to `type: "story"`. Always returns ≥1 entry.
+- **`cancel()`** — signals the current generation to stop after the stream drains.
+- **`setRoster(names)`** — updates the name list used for fuzzy SAY/DO matching.
+- **`switchModel(newModelId)`** — reloads the engine with a different model; resets progress.
+- **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
+- **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
+- **`getSnapshot()`** → `{ history, entryBatches }` — serializable snapshot for saving.
+- **`restoreSnapshot({ history, entryBatches })`** — restores a saved snapshot.
 
-All debug output uses `console.debug` with the `[YCDA]` prefix: prompt, raw response, parsed entries, new characters, kills.
+### Context compaction
+
+When the estimated token count of `historyRef` exceeds 90 % of the model's context window, `compactHistory` is called before the next generation:
+1. A summary of the oldest messages is requested from the LLM (temperature 0.2).
+2. The history is rebuilt as: `[system, synthetic-user-summary, synthetic-assistant-ack, ...recent pairs]`.
+3. `entryBatchesRef` indices are rebased accordingly.
+4. `onCompact(summary)` fires so the app can insert a `"compact"` divider entry.
+
+### Available models
+
+Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`):
+
+| Label | Model ID | Size | Context |
+|-------|----------|------|---------|
+| Llama 3.2 1B | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~0.8 GB | 4096 |
+| Llama 3.2 3B | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~1.8 GB | 4096 |
+| Phi 3.5 Mini 3.8B | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.2 GB | 4096 |
+| **Llama 3.1 8B** *(default)* | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 |
+| Qwen 2.5 7B | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~4.2 GB | 4096 |
+| Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 |
+
+## Save / load system
+
+Saves are persisted in IndexedDB (`ycda-saves` database, `saves` object store).
+
+Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` where `snapshot = { entries, characters, npcs, llmHistory, entryBatches }`.
+
+- **`useSaves`** hook exposes `{ saves, saveGame, deleteSave }`.
+- **`SavesDialog`** handles both "save" mode (in-game, shows "Save current game" button) and "load" mode (from StorySelect). Loading while in-game shows a confirm dialog.
+- The StorySelect screen shows up to 3 recent saves with inline Load/Delete actions; "View all" opens `SavesDialog`.
 
 ## InputBar actions
 
 - **Continue** — adds a `source: "continue"` divider entry, calls `generate("Continue the story.")`
 - **Re-run** — removes `lastRun.aiEntryIds` entries, calls `revertLast()`, re-calls `generate` with the same prompt. Disabled until at least one AI response exists.
+- **Remove Last** — removes the last entry from the feed and calls `pruneEntries` to sync LLM history.
+- **Cancel** — sets `cancelledRef` in the hook; generation stops after the current stream drains.
 - **Say / Do / Story** mode toggle — controls how the user's text is formatted before being sent to the LLM and how the entry is displayed.
+
+## AppHeader controls
+
+- **YCDA logo** — clicking while in-game opens a "Leave story?" confirm dialog; returns to StorySelect.
+- **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / error; click opens model switcher.
+- **Save icon** — opens `SavesDialog` in "save" mode (in-game only).
+- **AutoAwesome (✨) icon** — toggles narrator briefing (pre-generation). Stored in localStorage key `"pregen"`.
+- **Theme toggle** — light/dark, stored in localStorage key `"theme"`.
 
 ## Adding a new story
 
 1. Create `stories/your-story.json` following the schema above.
 2. It appears on the selection screen automatically on next dev server restart (or build).
+3. Alternatively, users can upload a story JSON at runtime via the Upload card on the selection screen.
 
 ## Known constraints
 
 - LLM runs on the main thread (not a Worker). The UI may stutter during heavy generation on low-end GPUs.
-- Context window is 4096 tokens. Long sessions will eventually hit the limit; no sliding-window trimming is implemented yet.
-- The model is hardcoded in `useLLM.js` (`MODEL_ID` constant). Changing it requires a code edit.
+- Context window is 4096 tokens for all available models. Compaction kicks in at 90% usage.
+- All debug output uses `console.debug` with the `[YCDA]` prefix: prompt, raw response, parsed entries, new characters, compaction summaries.

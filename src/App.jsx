@@ -9,6 +9,8 @@ import StorySelect from "./components/StorySelect";
 import StorySetup from "./components/StorySetup";
 import { buildSystemPrompt } from "./data/systemPrompt";
 import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
+import { useSaves } from "./hooks/useSaves";
+import SavesDialog from "./components/SavesDialog";
 
 function buildTheme(mode) {
   return createTheme({
@@ -48,7 +50,10 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries } = useLLM();
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
+  const { saves, saveGame, deleteSave } = useSaves();
+  const [savesDialogOpen, setSavesDialogOpen] = useState(false);
+  const [savesDialogMode, setSavesDialogMode] = useState("load");
   const pendingPostInitRef = useRef(null);
 
   const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
@@ -193,6 +198,29 @@ function App() {
     });
   };
 
+  const handleSaveGame = async () => {
+    if (!activeStory) return;
+    const snapshot = getSnapshot();
+    await saveGame({
+      storyId:    activeStory.id,
+      storyTitle: activeStory.title,
+      snapshot:   { entries, characters, npcs, llmHistory: snapshot.history, entryBatches: snapshot.entryBatches },
+    });
+  };
+
+  const handleLoadGame = (save) => {
+    const { characters: chars, npcs: savedNpcs, entries: savedEntries, llmHistory, entryBatches } = save.snapshot;
+    restoreSnapshot({ history: llmHistory, entryBatches });
+    setRoster([...chars.map((c) => c.name), ...savedNpcs.map((n) => n.name)]);
+    setActiveStory({ id: save.storyId, title: save.storyTitle });
+    setCharacters(chars);
+    setNpcs(savedNpcs);
+    setEntries(savedEntries);
+    setLastRun(null);
+    setPendingStory(null);
+    setSavesDialogOpen(false);
+  };
+
   const handleSubmit = (inputMode, text) => {
     const newEntry = {
       id: Date.now(),
@@ -221,12 +249,43 @@ function App() {
     });
   };
 
+  const savesDialog = (
+    <SavesDialog
+      open={savesDialogOpen}
+      onClose={() => setSavesDialogOpen(false)}
+      mode={savesDialogMode}
+      saves={saves}
+      onSaveNow={handleSaveGame}
+      onLoad={handleLoadGame}
+      onDelete={deleteSave}
+      isDark={isDark}
+      storyTitle={activeStory?.title}
+    />
+  );
+
   // Story selection screen
   if (!activeStory && !pendingStory) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} uploadedStories={uploadedStories} onUploadStory={(story) => setUploadedStories((prev) => { const exists = prev.some((s) => s.id === story.id); return exists ? prev.map((s) => s.id === story.id ? story : s) : [...prev, story]; })} />
+        <StorySelect
+          onPlay={handlePlayStory}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          llmStatus={status}
+          llmProgress={progress}
+          llmModelId={modelId}
+          onSwitchModel={switchModel}
+          pregenerationEnabled={pregenerationEnabled}
+          onTogglePregeneration={togglePregeneration}
+          uploadedStories={uploadedStories}
+          onUploadStory={(story) => setUploadedStories((prev) => { const exists = prev.some((s) => s.id === story.id); return exists ? prev.map((s) => s.id === story.id ? story : s) : [...prev, story]; })}
+          saves={saves}
+          onLoadSave={handleLoadGame}
+          onDeleteSave={deleteSave}
+          onOpenSavesDialog={() => { setSavesDialogMode("load"); setSavesDialogOpen(true); }}
+        />
+        {savesDialog}
       </ThemeProvider>
     );
   }
@@ -249,6 +308,7 @@ function App() {
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
         />
+        {savesDialog}
       </ThemeProvider>
     );
   }
@@ -258,7 +318,19 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", bgcolor: "background.default", overflow: "hidden" }}>
-        <AppHeader isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} storyTitle={activeStory.title} onHome={() => setActiveStory(null)} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} />
+        <AppHeader
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          llmStatus={status}
+          llmProgress={progress}
+          llmModelId={modelId}
+          onSwitchModel={switchModel}
+          storyTitle={activeStory.title}
+          onHome={() => setActiveStory(null)}
+          pregenerationEnabled={pregenerationEnabled}
+          onTogglePregeneration={togglePregeneration}
+          onOpenSaves={() => { setSavesDialogMode("save"); setSavesDialogOpen(true); }}
+        />
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
@@ -284,6 +356,7 @@ function App() {
           </Box>
         </Box>
       </Box>
+      {savesDialog}
     </ThemeProvider>
   );
 }
