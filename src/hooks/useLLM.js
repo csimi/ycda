@@ -1,17 +1,54 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as webllm from "@mlc-ai/web-llm";
+import { estimateTokenCount } from "tokenx";
 
 const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
-const MAX_HISTORY_PAIRS = 8; // trigger compaction after 8 user/assistant pairs
-const KEEP_RECENT_PAIRS = 4; // always preserve the last 4 pairs verbatim
 
-async function compactHistory(history, engine) {
+// Tokens reserved for the model's own output
+const GENERATION_BUDGET = 512;
+// Compact when history exceeds this fraction of available context
+const COMPACTION_RATIO = 0.80;
+// Estimated token overhead for the synthetic summary exchange injected after compaction
+const SUMMARY_OVERHEAD = 250;
+
+// Per-message overhead: role header + framing tokens (rough estimate)
+const MSG_OVERHEAD = 4;
+
+function estimateHistoryTokens(messages) {
+  return messages.reduce((sum, m) => sum + estimateTokenCount(m.content ?? "") + MSG_OVERHEAD, 0);
+}
+
+async function compactHistory(history, engine, contextWindow) {
   const system = history[0];
   const messages = history.slice(1);
-  if (messages.length <= MAX_HISTORY_PAIRS * 2) return { history, compacted: false };
 
-  const toSummarize = messages.slice(0, messages.length - KEEP_RECENT_PAIRS * 2);
-  const toKeep     = messages.slice(messages.length - KEEP_RECENT_PAIRS * 2);
+  const totalTokens = estimateHistoryTokens(history);
+  const availableBudget = contextWindow - GENERATION_BUDGET;
+
+  if (totalTokens <= availableBudget * COMPACTION_RATIO) return { history, compacted: false };
+
+  console.debug(`[YCDA] Token usage ${totalTokens}/${contextWindow} — compacting…`);
+
+  // Determine how many recent pairs fit in the post-compaction budget
+  const systemTokens = estimateHistoryTokens([system]);
+  const recentBudget = availableBudget - systemTokens - SUMMARY_OVERHEAD;
+
+  const toKeep = [];
+  let usedTokens = 0;
+  // Walk backwards through pairs (assistant at odd index, user at even)
+  for (let i = messages.length - 1; i >= 1; i -= 2) {
+    const pair = [messages[i - 1], messages[i]];
+    const pairTokens = estimateHistoryTokens(pair);
+    if (usedTokens + pairTokens > recentBudget) break;
+    toKeep.unshift(...pair);
+    usedTokens += pairTokens;
+  }
+
+  // Always keep at least the last exchange
+  if (toKeep.length === 0) toKeep.push(...messages.slice(-2));
+
+  const toSummarize = messages.slice(0, messages.length - toKeep.length);
+  if (toSummarize.length === 0) return { history, compacted: false };
 
   // Build a plain-text transcript of the messages to summarize
   const transcript = toSummarize.map((m) => {
@@ -49,12 +86,12 @@ async function compactHistory(history, engine) {
 }
 
 export const AVAILABLE_MODELS = [
-  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",   label: "Llama 3.2 1B",    size: "~0.8 GB" },
-  { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",   label: "Llama 3.2 3B",    size: "~1.8 GB" },
-  { id: "Phi-3.5-mini-instruct-q4f16_1-MLC",   label: "Phi 3.5 Mini 3.8B", size: "~2.2 GB" },
-  { id: "Llama-3.1-8B-Instruct-q4f16_1-MLC",   label: "Llama 3.1 8B",    size: "~4.5 GB" },
-  { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",     label: "Qwen 2.5 7B",     size: "~4.2 GB" },
-  { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",     size: "~4.2 GB" },
+  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 1B",      size: "~0.8 GB", contextWindow: 4096 },
+  { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 3B",      size: "~1.8 GB", contextWindow: 4096 },
+  { id: "Phi-3.5-mini-instruct-q4f16_1-MLC",    label: "Phi 3.5 Mini 3.8B", size: "~2.2 GB", contextWindow: 4096 },
+  { id: "Llama-3.1-8B-Instruct-q4f16_1-MLC",    label: "Llama 3.1 8B",      size: "~4.5 GB", contextWindow: 4096 },
+  { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",      label: "Qwen 2.5 7B",       size: "~4.2 GB", contextWindow: 4096 },
+  { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096 },
 ];
 export const STREAMING_ENTRY_ID = "__streaming__";
 
@@ -181,6 +218,9 @@ export function useLLM() {
   const historyRef = useRef([]);
   const statusRef = useRef("uninitialized");
   const cancelledRef = useRef(false);
+  const contextWindowRef = useRef(
+    AVAILABLE_MODELS.find((m) => m.id === MODEL_ID)?.contextWindow ?? 4096
+  );
 
   useEffect(() => {
     const engine = new webllm.MLCEngine();
@@ -211,7 +251,7 @@ export function useLLM() {
 
     const { onPlaceholder, onChunk, onComplete, onError, onCompact } = callbacks;
 
-    const { history: compacted, compacted: wasCompacted, summary } = await compactHistory(historyRef.current, engineRef.current);
+    const { history: compacted, compacted: wasCompacted, summary } = await compactHistory(historyRef.current, engineRef.current, contextWindowRef.current);
     historyRef.current = compacted;
     if (wasCompacted) onCompact?.(summary);
 
@@ -306,6 +346,7 @@ export function useLLM() {
     try {
       await engineRef.current.reload(newModelId, { temperature: 0.9, top_p: 0.95 });
       setModelId(newModelId);
+      contextWindowRef.current = AVAILABLE_MODELS.find((m) => m.id === newModelId)?.contextWindow ?? 4096;
       setStatus("ready");
       statusRef.current = "ready";
     } catch (err) {
