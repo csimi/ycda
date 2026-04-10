@@ -6,6 +6,7 @@ import StoryPanel from "./components/StoryPanel";
 import InputBar from "./components/InputBar";
 import AppHeader from "./components/AppHeader";
 import StorySelect from "./components/StorySelect";
+import StorySetup from "./components/StorySetup";
 import { buildSystemPrompt } from "./data/systemPrompt";
 import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
 
@@ -40,6 +41,7 @@ function formatUserAction(inputMode, text, characterName) {
 function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
   const [activeStory, setActiveStory] = useState(null);
+  const [pendingStory, setPendingStory] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
@@ -57,13 +59,46 @@ function App() {
     localStorage.setItem("theme", next);
   };
 
-  const handleSelectStory = (story) => {
+  const handleSelectStory = (story, setupAnswers = {}) => {
+    const oldPlayerName = story.characters?.find((c) => c.isPlayer)?.name;
+
+    // Apply setup answers to the player character
+    const chars = (story.characters ?? []).map((c) =>
+      c.isPlayer ? { ...c, ...setupAnswers } : c
+    );
+    const newPlayerName = chars.find((c) => c.isPlayer)?.name ?? oldPlayerName;
+
+    // Interpolate ${field} placeholders in entry text using setup answers
+    const interpolate = (text) =>
+      text?.replace(/\$\{(\w+)\}/g, (_, key) => setupAnswers[key] ?? `\${${key}}`);
+
+    const initialEntries = (story.entries ?? []).map((e) => ({
+      ...e,
+      text: interpolate(e.text),
+      ...(e.character === oldPlayerName ? { character: newPlayerName } : {}),
+    }));
+
+    // Non-character setup fields become extra context in the system prompt
+    const CHARACTER_FIELDS = new Set(["name", "gender", "class", "avatar", "disposition"]);
+    const extraContext = (story.setup ?? [])
+      .filter((q) => !CHARACTER_FIELDS.has(q.field) && setupAnswers[q.field]?.trim())
+      .map((q) => ({ label: q.label, value: setupAnswers[q.field] }));
+
     setActiveStory(story);
-    setCharacters(story.characters ?? []);
-    setEntries(story.entries ?? []);
+    setPendingStory(null);
+    setCharacters(chars);
+    setEntries(initialEntries);
     setNpcs(story.npcs ?? []);
     setLastRun(null);
-    setSystemPrompt(buildSystemPrompt(story.characters ?? [], story.npcs ?? []));
+    setSystemPrompt(buildSystemPrompt(chars, story.npcs ?? [], extraContext));
+  };
+
+  const handlePlayStory = (story) => {
+    if (story.setup?.length) {
+      setPendingStory(story);
+    } else {
+      handleSelectStory(story);
+    }
   };
 
   const playerCharacter = characters.find((c) => c.isPlayer);
@@ -164,11 +199,31 @@ function App() {
   };
 
   // Story selection screen
-  if (!activeStory) {
+  if (!activeStory && !pendingStory) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <StorySelect onPlay={handleSelectStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} />
+        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} />
+      </ThemeProvider>
+    );
+  }
+
+  // Story setup screen (pre-game questions)
+  if (!activeStory && pendingStory) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <StorySetup
+          story={pendingStory}
+          onStart={(answers) => handleSelectStory(pendingStory, answers)}
+          onBack={() => setPendingStory(null)}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          llmStatus={status}
+          llmProgress={progress}
+          llmModelId={modelId}
+          onSwitchModel={switchModel}
+        />
       </ThemeProvider>
     );
   }
@@ -185,7 +240,7 @@ function App() {
           <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} onRevive={(name) => markRevived([name])} />
 
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default" }}>
-            <StoryPanel entries={entries} isDark={isDark} onRemoveEntry={(id) => setEntries((prev) => prev.filter((e) => e.id !== id))} />
+            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} onRemoveEntry={(id) => setEntries((prev) => prev.filter((e) => e.id !== id))} />
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {

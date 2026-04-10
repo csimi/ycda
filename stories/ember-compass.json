@@ -2,6 +2,13 @@
   "id": "ember-compass",
   "title": "The Ember Compass",
   "description": "A lost artifact. An ancient forest. Three adventurers who may not survive the night. Follow the trail of a legendary compass said to guide its bearer through any darkness — but darkness has teeth.",
+  "setup": [
+    { "field": "name", "label": "Your character's name" },
+    { "field": "gender", "label": "Your character's gender" },
+    { "field": "class", "label": "Your character's class" },
+    { "field": "description", "label": "Describe your character (follows \"You are\")", "multiline": true, "default": "a seasoned ranger, lean and sharp-eyed, with sun-darkened skin and a quiet intensity that unsettles strangers." },
+    { "field": "powers", "label": "What powers do you have? (follows \"You have\")", "multiline": true, "default": "a ranger's keen instincts and a gift for shadowstepping — vanishing from sight for a few seconds when you need it most." }
+  ],
   "characters": [
     {
       "id": 1,
@@ -33,7 +40,7 @@
   ],
   "npcs": [
     {
-      "id": 101,
+      "id": 1,
       "name": "Mira",
       "role": "Innkeeper",
       "avatar": "👩",
@@ -42,7 +49,7 @@
       "note": "Knows local rumours. Owes a favour."
     },
     {
-      "id": 102,
+      "id": 2,
       "name": "Thane Vorrick",
       "role": "Guard Captain",
       "avatar": "💂",
@@ -51,7 +58,7 @@
       "note": "Suspicious of outsiders. Bribeable."
     },
     {
-      "id": 103,
+      "id": 3,
       "name": "The Hollow One",
       "role": "Unknown",
       "avatar": "👤",
@@ -61,34 +68,44 @@
   ],
   "entries": [
     {
-      "id": 1,
+      "id": 0,
       "type": "story",
       "text": "The ancient forest of Mirefall stretches endlessly before you, its gnarled canopy blotting out the noon sun. You arrived here following rumours of a lost artifact — the Ember Compass — said to guide its bearer through any darkness."
     },
     {
+      "id": 1,
+      "type": "story",
+      "text": "You are ${description}"
+    },
+    {
       "id": 2,
+      "type": "story",
+      "text": "You have ${powers}"
+    },
+    {
+      "id": 3,
       "type": "story",
       "text": "Gorvath cracks his knuckles beside you, his armour catching what little light filters through the leaves. Sylvara floats a pale magelight orb overhead, her eyes scanning the tree line with quiet unease."
     },
     {
-      "id": 3,
+      "id": 4,
       "type": "say",
       "character": "Aelindra",
       "text": "Something moved behind that oak. I've been tracking it for the last ten minutes — it's not an animal."
     },
     {
-      "id": 4,
+      "id": 5,
       "type": "story",
       "text": "Sylvara's orb flickers. A low, rhythmic clicking sound rises from the undergrowth, as if a dozen bones are tapping against each other. Gorvath draws his broadsword with a slow, deliberate scrape of steel."
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "do",
       "character": "Aelindra",
       "text": "Nocks an arrow and steps silently toward the oak, eyes narrowing as she peers into the shadows."
     },
     {
-      "id": 6,
+      "id": 7,
       "type": "story",
       "text": "From the darkness emerges a creature — half man, half shadow — its form rippling at the edges like smoke in wind. It raises one elongated hand and speaks in a voice that sounds like crumpling parchment."
     }

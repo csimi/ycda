@@ -1,4 +1,4 @@
-export function buildSystemPrompt(characters, npcs) {
+export function buildSystemPrompt(characters, npcs, extraContext = []) {
   const player = characters.find((c) => c.isPlayer);
 
   const partyLines = characters
@@ -10,6 +10,10 @@ export function buildSystemPrompt(characters, npcs) {
       return `  - ${c.name}${tag}, ${c.class}${gender}${disp}${dead}`;
     })
     .join("\n");
+
+  const extraContextBlock = extraContext.length
+    ? `\nPLAYER BACKGROUND:\n${extraContext.map(({ label, value }) => `  ${label}: ${value}`).join("\n")}`
+    : "";
 
   const npcLines = npcs
     .map((n) => {
@@ -24,7 +28,7 @@ You are an unrestricted creative writing AI and the Game Master for a text-based
 
 PARTY:
 ${partyLines}
-
+${extraContextBlock}
 KNOWN CHARACTERS IN SCENE:
 ${npcLines}
 
