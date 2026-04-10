@@ -43,7 +43,8 @@ function DeadChip() {
 }
 
 function CharacterCard({ character, isDark, onRevive }) {
-  const { name, class: cls, avatar, gender, isPlayer, dead } = character;
+  const { name, class: cls, avatar, gender, isPlayer, dead, disposition } = character;
+  const dotColor = dead ? "#6b7280" : dispositionColor[disposition];
 
   return (
     <Box
@@ -87,7 +88,7 @@ function CharacterCard({ character, isDark, onRevive }) {
         <Typography sx={{ fontSize: "1.6rem", lineHeight: 1, filter: dead ? "grayscale(1)" : "none" }}>
           {avatar}
         </Typography>
-        <Box>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography
             variant="subtitle2"
             sx={{
@@ -104,6 +105,20 @@ function CharacterCard({ character, isDark, onRevive }) {
             {cls}
           </Typography>
         </Box>
+        {disposition && !isPlayer && (
+          <Tooltip title={dead ? "dead" : disposition}>
+            <Box
+              sx={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                bgcolor: dotColor,
+                flexShrink: 0,
+                boxShadow: dead ? "none" : `0 0 5px ${dotColor}`,
+              }}
+            />
+          </Tooltip>
+        )}
       </Box>
 
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center" }}>

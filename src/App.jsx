@@ -99,17 +99,43 @@ function App() {
     setNpcs((prev) => prev.map((n) => revived.has(n.name.toLowerCase()) ? { ...n, dead: false } : n));
   };
 
+  const applyDispositionChanges = (changes) => {
+    changes.forEach(({ name, disposition }) => {
+      const key = name.toLowerCase();
+      setCharacters((prev) => prev.map((c) => c.name.toLowerCase() === key && !c.isPlayer ? { ...c, disposition } : c));
+      setNpcs((prev) => prev.map((n) => n.name.toLowerCase() === key ? { ...n, disposition } : n));
+    });
+  };
+
   const callGenerate = (userMessage) => {
     if (!isLLMReady) return;
+    const prevCharacters = characters;
+    const prevNpcs = npcs;
     generate(userMessage, {
       onPlaceholder: (id) => setEntries((prev) => [...prev, { id, type: "story", text: "…" }]),
       onChunk: (id, partial) => setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, text: partial } : e))),
-      onComplete: (id, parsedEntries, newChars, killedNames, revivedNames) => {
-        setEntries((prev) => [...prev.filter((e) => e.id !== id), ...parsedEntries]);
-        setLastRun({ userMessage, aiEntryIds: new Set(parsedEntries.map((e) => e.id)) });
+      onComplete: (id, parsedEntries, newChars, killedNames, revivedNames, dispositionChanges) => {
+        const dispEntries = dispositionChanges
+          .filter(({ name, disposition }) => {
+            const isPlayer = prevCharacters.some((c) => c.isPlayer && c.name.toLowerCase() === name.toLowerCase());
+            if (isPlayer) return false;
+            const current = prevNpcs.find((n) => n.name.toLowerCase() === name.toLowerCase());
+            return !current || current.disposition !== disposition;
+          })
+          .map(({ name, disposition }) => ({
+            id: Date.now() + Math.random(),
+            type: "story",
+            source: "disposition",
+            character: name,
+            disposition,
+          }));
+        const allEntries = [...parsedEntries, ...dispEntries];
+        setEntries((prev) => [...prev.filter((e) => e.id !== id), ...allEntries]);
+        setLastRun({ userMessage, aiEntryIds: new Set(allEntries.map((e) => e.id)), prevCharacters, prevNpcs });
         mergeNewChars(newChars);
         if (killedNames.length) markKilled(killedNames);
         if (revivedNames.length) markRevived(revivedNames);
+        if (dispositionChanges.length) applyDispositionChanges(dispositionChanges);
       },
       onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
       onCompact: (summary) => setEntries((prev) => [...prev, { id: Date.now() + Math.random(), type: "story", source: "compact", text: summary }]),
@@ -130,6 +156,8 @@ function App() {
   const handleRerun = () => {
     if (!lastRun || !isLLMReady) return;
     setEntries((prev) => prev.filter((e) => !lastRun.aiEntryIds.has(e.id)));
+    setCharacters(lastRun.prevCharacters);
+    setNpcs(lastRun.prevNpcs);
     setLastRun(null);
     revertLast();
     callGenerate(lastRun.userMessage);

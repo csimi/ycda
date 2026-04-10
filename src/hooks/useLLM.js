@@ -79,6 +79,7 @@ function parseGMResponse(text) {
   const newChars = [];
   const killedNames = [];
   const revivedNames = [];
+  const dispositionChanges = [];
   const lines = text.split("\n");
 
   for (const raw of lines) {
@@ -117,7 +118,9 @@ function parseGMResponse(text) {
     const newCharMatch = line.match(/^\[NEW_CHAR:([^\]]+)\]/i);
     if (newCharMatch) {
       const parts = newCharMatch[1].split("|").map((s) => s.trim());
-      const [name, role, gender, disposition, ...noteParts] = parts;
+      const [rawName, role, gender, disposition, ...noteParts] = parts;
+      // Strip any role/job suffix the model appended to the name (e.g. "Brynhild, Barkeeper")
+      const name = rawName.split(/[,\-–]/)[0].trim();
       if (name && role) {
         newChars.push({
           id: Date.now() + Math.random(),
@@ -146,6 +149,16 @@ function parseGMResponse(text) {
       continue;
     }
 
+    // [DISPOSITION:CharName|friendly|neutral|hostile]
+    const dispMatch = line.match(/^\[DISPOSITION:([^\]|]+)\|([^\]]+)\]/i);
+    if (dispMatch) {
+      const disp = dispMatch[2].trim().toLowerCase();
+      if (VALID_DISPOSITIONS.has(disp)) {
+        dispositionChanges.push({ name: dispMatch[1].trim(), disposition: disp });
+      }
+      continue;
+    }
+
     // Fallback: unrecognised line becomes a story entry
     if (line.length > 5) {
       entries.push({ id: Date.now() + Math.random(), type: "story", text: line });
@@ -157,7 +170,7 @@ function parseGMResponse(text) {
     entries.push({ id: Date.now(), type: "story", text: text.trim() });
   }
 
-  return { entries, newChars, killedNames, revivedNames };
+  return { entries, newChars, killedNames, revivedNames, dispositionChanges };
 }
 
 export function useLLM() {
@@ -247,12 +260,13 @@ export function useLLM() {
 
         historyRef.current.push({ role: "assistant", content: finalMessage });
         committed = true;
-        const { entries, newChars, killedNames, revivedNames } = parseGMResponse(finalMessage);
+        const { entries, newChars, killedNames, revivedNames, dispositionChanges } = parseGMResponse(finalMessage);
         console.debug("[YCDA] Parsed entries →", entries);
-        if (newChars.length > 0)    console.debug("[YCDA] New characters →", newChars);
-        if (killedNames.length > 0) console.debug("[YCDA] Killed →", killedNames);
-        if (revivedNames.length > 0) console.debug("[YCDA] Revived →", revivedNames);
-        onComplete(STREAMING_ENTRY_ID, entries, newChars, killedNames, revivedNames);
+        if (newChars.length > 0)          console.debug("[YCDA] New characters →", newChars);
+        if (killedNames.length > 0)       console.debug("[YCDA] Killed →", killedNames);
+        if (revivedNames.length > 0)      console.debug("[YCDA] Revived →", revivedNames);
+        if (dispositionChanges.length > 0) console.debug("[YCDA] Disposition changes →", dispositionChanges);
+        onComplete(STREAMING_ENTRY_ID, entries, newChars, killedNames, revivedNames, dispositionChanges);
         return;
       }
 

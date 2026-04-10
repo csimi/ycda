@@ -67,6 +67,24 @@ export default function StoryEntry({ entry, isDark }) {
   const colors = isDark ? cfg.dark : cfg.light;
   const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
 
+  if (entry.type === "story" && entry.source === "disposition") {
+    const dotColor = { friendly: "#34d399", neutral: "#94a3b8", hostile: "#f87171" }[entry.disposition] ?? "#94a3b8";
+    const textColor = isDark ? `${dotColor}99` : `${dotColor}cc`;
+    const lineColor = isDark ? `${dotColor}18` : `${dotColor}22`;
+    return (
+      <Box sx={{ px: 3, py: 0.3, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: dotColor, opacity: 0.7, flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.6rem", fontWeight: 600, color: textColor, whiteSpace: "nowrap" }}>
+            {entry.character} · {entry.disposition}
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+      </Box>
+    );
+  }
+
   if (entry.type === "story" && entry.source === "compact") {
     const color = isDark ? "rgba(251,191,36,0.35)" : "rgba(180,130,20,0.45)";
     const lineColor = isDark ? "rgba(251,191,36,0.12)" : "rgba(180,130,20,0.15)";

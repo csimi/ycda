@@ -9,7 +9,8 @@
       "class": "Ranger",
       "avatar": "🧝",
       "gender": "Female",
-      "isPlayer": true
+      "isPlayer": true,
+      "disposition": "friendly"
     },
     {
       "id": 2,
@@ -17,7 +18,8 @@
       "class": "Warrior",
       "avatar": "🧔",
       "gender": "Male",
-      "isPlayer": false
+      "isPlayer": false,
+      "disposition": "friendly"
     },
     {
       "id": 3,
@@ -25,7 +27,8 @@
       "class": "Mage",
       "avatar": "🧙",
       "gender": "Female",
-      "isPlayer": false
+      "isPlayer": false,
+      "disposition": "friendly"
     }
   ],
   "npcs": [
