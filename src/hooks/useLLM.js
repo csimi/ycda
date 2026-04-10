@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
+import { distance } from "fastest-levenshtein";
 
 const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
 
@@ -8,6 +9,9 @@ const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
 const GENERATION_BUDGET = 256;
 // Compact when history exceeds this fraction of available context
 const COMPACTION_RATIO = 0.90;
+// After compaction, fill history to only this fraction — leaves headroom so the
+// next compaction doesn't trigger immediately on the following turn
+const POST_COMPACT_RATIO = 0.65;
 // Estimated token overhead for the synthetic summary exchange injected after compaction
 const SUMMARY_OVERHEAD = 250;
 
@@ -31,7 +35,7 @@ async function compactHistory(history, engine, contextWindow) {
 
   // Determine how many recent pairs fit in the post-compaction budget
   const systemTokens = estimateHistoryTokens([system]);
-  const recentBudget = availableBudget - systemTokens - SUMMARY_OVERHEAD;
+  const recentBudget = availableBudget * POST_COMPACT_RATIO - systemTokens - SUMMARY_OVERHEAD;
 
   const toKeep = [];
   let usedTokens = 0;
@@ -116,7 +120,38 @@ function isRefusal(text) {
 
 const VALID_DISPOSITIONS = new Set(["friendly", "neutral", "hostile"]);
 
-function parseGMResponse(text) {
+function closestRosterName(name, roster) {
+  if (!roster.length) return name;
+  const lower = name.toLowerCase();
+  let best = null, bestDist = Infinity;
+  for (const r of roster) {
+    const d = distance(lower, r.toLowerCase());
+    if (d < bestDist) { bestDist = d; best = r; }
+  }
+  return bestDist <= 2 && bestDist < name.length / 2 ? best : name;
+}
+
+// Strip leading/trailing brackets that the model sometimes adds.
+// Opening bracket is optional so "text]." is also cleaned.
+function stripBrackets(s) {
+  const m = s.match(/^\[?(.+)\][.,!?…]*$/);
+  return m ? m[1].trim() : s.trim();
+}
+
+// When the model stuffs pipe-separated metadata into a SAY/DO name field,
+// extract the actual character name (first segment) and the text (last segment).
+// Falls back to the normal split when no pipes are present.
+function extractNameAndText(rawName, afterBracket) {
+  const parts = rawName.split("|").map((s) => s.trim());
+  if (parts.length === 1) {
+    // Normal case: name is clean, text comes after the closing bracket
+    return { name: rawName.trim(), text: afterBracket?.trim() ?? "" };
+  }
+  // Pipe-stuffed case: first segment = name, last segment = text
+  return { name: parts[0], text: parts[parts.length - 1] };
+}
+
+function parseGMResponse(text, roster = []) {
   const entries = [];
   const newChars = [];
   const lines = text.split("\n");
@@ -131,28 +166,36 @@ function parseGMResponse(text) {
       continue;
     }
 
-    const sayMatch = line.match(/^\[SAY:([^\]]+)\]\s*(.+)/i);
+    // SAY/DO: text after ] is optional — the model sometimes stuffs pipe-separated
+    // NEW_CHAR metadata into the name field, e.g. [SAY:Name|role|...|actual text]
+    const sayMatch = line.match(/^\[SAY:([^\]]+)\](?:\s*(.+))?/i);
     if (sayMatch) {
-      entries.push({
-        id: Date.now() + Math.random(),
-        type: "say",
-        character: sayMatch[1].trim(),
-        text: sayMatch[2].replace(/^"|"$/g, "").trim(),
-        _raw: line,
-      });
-      continue;
+      const { name: sayName, text: sayText } = extractNameAndText(sayMatch[1], sayMatch[2]);
+      if (sayText) {
+        entries.push({
+          id: Date.now() + Math.random(),
+          type: "say",
+          character: closestRosterName(sayName, roster),
+          text: stripBrackets(sayText.replace(/^"|"$/g, "")),
+          _raw: line,
+        });
+        continue;
+      }
     }
 
-    const doMatch = line.match(/^\[DO:([^\]]+)\]\s*(.+)/i);
+    const doMatch = line.match(/^\[DO:([^\]]+)\](?:\s*(.+))?/i);
     if (doMatch) {
-      entries.push({
-        id: Date.now() + Math.random(),
-        type: "do",
-        character: doMatch[1].trim(),
-        text: doMatch[2].replace(/^\*|\*$/g, "").trim(),
-        _raw: line,
-      });
-      continue;
+      const { name: doName, text: doText } = extractNameAndText(doMatch[1], doMatch[2]);
+      if (doText) {
+        entries.push({
+          id: Date.now() + Math.random(),
+          type: "do",
+          character: closestRosterName(doName, roster),
+          text: stripBrackets(doText.replace(/^\*|\*$/g, "")),
+          _raw: line,
+        });
+        continue;
+      }
     }
 
     // [NEW_CHAR:name|role|gender|disposition|note]
@@ -176,9 +219,12 @@ function parseGMResponse(text) {
       continue;
     }
 
-    // Fallback: unrecognised line becomes a story entry
+    // Fallback: unrecognised line becomes a story entry.
+    // Strip outer brackets the model sometimes uses for stage-direction style lines,
+    // e.g. "[Bryn looks around nervously]" → "Bryn looks around nervously"
     if (line.length > 5) {
-      entries.push({ id: Date.now() + Math.random(), type: "story", text: line, _raw: line });
+      const text = stripBrackets(line);
+      entries.push({ id: Date.now() + Math.random(), type: "story", text, _raw: line });
     }
   }
 
@@ -196,6 +242,7 @@ export function useLLM() {
   const [modelId, setModelId] = useState(MODEL_ID);
   const engineRef = useRef(null);
   const historyRef = useRef([]);
+  const rosterRef = useRef([]);
   const statusRef = useRef("uninitialized");
   const cancelledRef = useRef(false);
   // Tracks which history assistant message each batch of AI entries came from.
@@ -266,6 +313,7 @@ export function useLLM() {
           stream: true,
           messages: historyRef.current,
           stream_options: { include_usage: true },
+          repetition_penalty: 1.2,
         });
 
         for await (const chunk of completion) {
@@ -291,7 +339,7 @@ export function useLLM() {
         const assistantHistIdx = historyRef.current.length;
         historyRef.current.push({ role: "assistant", content: finalMessage });
         committed = true;
-        const { entries, newChars } = parseGMResponse(finalMessage);
+        const { entries, newChars } = parseGMResponse(finalMessage, rosterRef.current);
         // Record batch so pruneEntries can find and update this history message later.
         entryBatchesRef.current.push({
           histIdx: assistantHistIdx,
@@ -328,6 +376,10 @@ export function useLLM() {
   const setSystemPrompt = useCallback((prompt) => {
     historyRef.current = [{ role: "system", content: prompt }];
     entryBatchesRef.current = [];
+  }, []);
+
+  const setRoster = useCallback((names) => {
+    rosterRef.current = names;
   }, []);
 
   // Remove entry IDs from LLM history. If all entries of a turn are removed,
@@ -389,5 +441,5 @@ export function useLLM() {
     }
   }, []);
 
-  return { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel, pruneEntries };
+  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries };
 }

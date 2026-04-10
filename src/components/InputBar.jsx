@@ -13,6 +13,7 @@ import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ReplayIcon from "@mui/icons-material/Replay";
 import StopIcon from "@mui/icons-material/Stop";
+import BackspaceIcon from "@mui/icons-material/Backspace";
 
 const actionTypes = [
   {
@@ -44,7 +45,7 @@ const actionTypes = [
   },
 ];
 
-export default function InputBar({ onSubmit, onContinue, onRerun, onCancel, canRerun, isDark, disabled = false, isGenerating = false }) {
+export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, onCancel, canRerun, canRemoveLast, isDark, disabled = false, isGenerating = false }) {
   const [mode, setMode] = useState("say");
   const [text, setText] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -145,6 +146,36 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onCancel, canR
           }}
         >
           Re-run
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={onRemoveLast}
+          disabled={disabled || !canRemoveLast}
+          startIcon={<BackspaceIcon sx={{ fontSize: "15px !important" }} />}
+          sx={{
+            textTransform: "none",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            borderRadius: "8px",
+            px: 1.2,
+            py: 0.4,
+            borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)",
+            color: "text.secondary",
+            whiteSpace: "nowrap",
+            "&:hover": {
+              borderColor: isDark ? "rgba(196,26,26,0.4)" : "rgba(196,26,26,0.3)",
+              bgcolor: isDark ? "rgba(196,26,26,0.08)" : "rgba(196,26,26,0.04)",
+              color: "error.main",
+            },
+            "&.Mui-disabled": {
+              opacity: 0.35,
+              borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+            },
+          }}
+        >
+          Remove
         </Button>
 
         <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, whiteSpace: "nowrap" }}>

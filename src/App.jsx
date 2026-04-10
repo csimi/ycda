@@ -46,7 +46,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, switchModel, cancel, pruneEntries } = useLLM();
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries } = useLLM();
 
   const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
   const isDark = themeMode === "dark";
@@ -84,13 +84,15 @@ function App() {
       .filter((q) => !CHARACTER_FIELDS.has(q.field) && setupAnswers[q.field]?.trim())
       .map((q) => ({ label: q.label, value: setupAnswers[q.field] }));
 
+    const initialNpcs = story.npcs ?? [];
     setActiveStory(story);
     setPendingStory(null);
     setCharacters(chars);
     setEntries(initialEntries);
-    setNpcs(story.npcs ?? []);
+    setNpcs(initialNpcs);
     setLastRun(null);
-    setSystemPrompt(buildSystemPrompt(chars, story.npcs ?? [], extraContext));
+    setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext));
+    setRoster([...chars.map((c) => c.name), ...initialNpcs.map((n) => n.name)]);
   };
 
   const handlePlayStory = (story) => {
@@ -118,8 +120,25 @@ function App() {
         (existing) => lower === existing || lower.startsWith(existing + "'") || lower.startsWith(existing + " ") || existing.startsWith(lower + "'") || existing.startsWith(lower + " ")
       );
     };
-    const truly_new = newChars.filter((c) => !isVariant(c.name));
-    if (truly_new.length) setNpcs((prev) => [...prev, ...truly_new]);
+    const ABSTRACT_ROLE_PREFIXES = [
+      "manifestation", "projection", "echo", "spirit", "reflection",
+      "embodiment", "essence", "aspect", "avatar of", "presence of",
+      "extension of", "personification",
+    ];
+    const isAbstractChar = (c) => {
+      // Names like "Headmistress's burning aura" contain a possessive mid-phrase
+      if (/'s\s+\w/i.test(c.name)) return true;
+      const roleLower = (c.role || "").toLowerCase();
+      return ABSTRACT_ROLE_PREFIXES.some((p) => roleLower.startsWith(p));
+    };
+    const truly_new = newChars.filter((c) => !isVariant(c.name) && !isAbstractChar(c));
+    if (truly_new.length) {
+      setNpcs((prev) => {
+        const updated = [...prev, ...truly_new];
+        setRoster([...characters.map((c) => c.name), ...updated.map((n) => n.name)]);
+        return updated;
+      });
+    }
   };
 
   const callGenerate = (userMessage) => {
@@ -154,6 +173,15 @@ function App() {
     setLastRun(null);
     revertLast();
     callGenerate(lastRun.userMessage);
+  };
+
+  const handleRemoveLast = () => {
+    setEntries((prev) => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      pruneEntries([last.id]);
+      return prev.slice(0, -1);
+    });
   };
 
   // Story selection screen
@@ -206,8 +234,10 @@ function App() {
                 callGenerate("Continue the story.");
               }}
               onRerun={handleRerun}
+              onRemoveLast={handleRemoveLast}
               onCancel={cancel}
               canRerun={!!lastRun && isLLMReady}
+              canRemoveLast={entries.length > 0}
               isDark={isDark}
               disabled={isGenerating || status === "loading"}
               isGenerating={isGenerating}
