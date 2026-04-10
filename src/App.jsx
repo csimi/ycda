@@ -43,6 +43,7 @@ function App() {
   const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
   const [activeStory, setActiveStory] = useState(null);
   const [pendingStory, setPendingStory] = useState(null);
+  const [uploadedStories, setUploadedStories] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
@@ -225,7 +226,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} />
+        <StorySelect onPlay={handlePlayStory} isDark={isDark} onToggleTheme={toggleTheme} llmStatus={status} llmProgress={progress} llmModelId={modelId} onSwitchModel={switchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={togglePregeneration} uploadedStories={uploadedStories} onUploadStory={(story) => setUploadedStories((prev) => { const exists = prev.some((s) => s.id === story.id); return exists ? prev.map((s) => s.id === story.id ? story : s) : [...prev, story]; })} />
       </ThemeProvider>
     );
   }

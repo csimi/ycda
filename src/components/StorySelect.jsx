@@ -124,7 +124,7 @@ function UploadCard({ onUpload, isDark }) {
   );
 }
 
-export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration }) {
+export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory }) {
   return (
     <Box
       sx={{
@@ -154,8 +154,13 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
               <StoryCard story={story} onPlay={onPlay} isDark={isDark} />
             </Grid>
           ))}
+          {uploadedStories.map((story) => (
+            <Grid item xs={12} sm={6} md={4} key={story.id}>
+              <StoryCard story={story} onPlay={onPlay} isDark={isDark} />
+            </Grid>
+          ))}
           <Grid item xs={12} sm={6} md={4}>
-            <UploadCard onUpload={onPlay} isDark={isDark} />
+            <UploadCard onUpload={onUploadStory} isDark={isDark} />
           </Grid>
         </Grid>
       </Box>
