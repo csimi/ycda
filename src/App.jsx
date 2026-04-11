@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Box, CssBaseline } from "@mui/material";
+import { Box, CssBaseline, useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import CharacterPanel from "./components/CharacterPanel";
 import StoryPanel from "./components/StoryPanel";
 import InputBar from "./components/InputBar";
@@ -12,7 +14,10 @@ import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
 import { useSaves } from "./hooks/useSaves";
 import SavesDialog from "./components/SavesDialog";
 
-function buildTheme(mode) {
+const SERIF_STACK = "'Georgia', 'Cambria', 'Times New Roman', serif";
+const SANS_STACK  = "'Inter', 'Segoe UI', sans-serif";
+
+function buildTheme(mode, fontSerif, fontScale) {
   return createTheme({
     palette: {
       mode,
@@ -29,7 +34,14 @@ function buildTheme(mode) {
           }),
     },
     typography: {
-      fontFamily: "'Inter', 'Segoe UI', sans-serif",
+      fontFamily: fontSerif ? SERIF_STACK : SANS_STACK,
+    },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          html: { fontSize: `${16 * fontScale}px` },
+        },
+      },
     },
   });
 }
@@ -43,6 +55,11 @@ function formatUserAction(inputMode, text, characterName) {
 function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
   const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
+  const [fontSerif, setFontSerif] = useState(() => localStorage.getItem("fontSerif") !== "false");
+  const [fontScale, setFontScale] = useState(() => {
+    const v = parseFloat(localStorage.getItem("fontScale"));
+    return Number.isFinite(v) ? v : 1;
+  });
   const [activeStory, setActiveStory] = useState(null);
   const [pendingStory, setPendingStory] = useState(null);
   const [uploadedStories, setUploadedStories] = useState([]);
@@ -56,8 +73,10 @@ function App() {
   const [savesDialogMode, setSavesDialogMode] = useState("load");
   const pendingPostInitRef = useRef(null);
 
-  const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
+  const theme = useMemo(() => buildTheme(themeMode, fontSerif, fontScale), [themeMode, fontSerif, fontScale]);
   const isDark = themeMode === "dark";
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isGenerating = status === "generating";
   const isLLMReady   = status === "ready";
 
@@ -71,6 +90,18 @@ function App() {
     const next = !pregenerationEnabled;
     setPregenerationEnabled(next);
     localStorage.setItem("pregen", String(next));
+  };
+
+  const toggleFontSerif = () => {
+    const next = !fontSerif;
+    setFontSerif(next);
+    localStorage.setItem("fontSerif", String(next));
+  };
+
+  const adjustFontScale = (delta) => {
+    const next = Math.min(1.6, Math.max(0.8, Math.round((fontScale + delta) * 100) / 100));
+    setFontScale(next);
+    localStorage.setItem("fontScale", String(next));
   };
 
   // Run deferred post-init (pregen + seed) once the engine finishes loading.
@@ -284,6 +315,12 @@ function App() {
           onLoadSave={handleLoadGame}
           onDeleteSave={deleteSave}
           onOpenSavesDialog={() => { setSavesDialogMode("load"); setSavesDialogOpen(true); }}
+          isMobile={isMobile}
+          fontSerif={fontSerif}
+          onToggleFontSerif={toggleFontSerif}
+          fontScale={fontScale}
+          onIncreaseFontSize={() => adjustFontScale(0.1)}
+          onDecreaseFontSize={() => adjustFontScale(-0.1)}
         />
         {savesDialog}
       </ThemeProvider>
@@ -307,6 +344,12 @@ function App() {
           onSwitchModel={switchModel}
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
+          isMobile={isMobile}
+          fontSerif={fontSerif}
+          onToggleFontSerif={toggleFontSerif}
+          fontScale={fontScale}
+          onIncreaseFontSize={() => adjustFontScale(0.1)}
+          onDecreaseFontSize={() => adjustFontScale(-0.1)}
         />
         {savesDialog}
       </ThemeProvider>
@@ -330,13 +373,44 @@ function App() {
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
           onOpenSaves={() => { setSavesDialogMode("save"); setSavesDialogOpen(true); }}
+          isMobile={isMobile}
+          fontSerif={fontSerif}
+          onToggleFontSerif={toggleFontSerif}
+          fontScale={fontScale}
+          onIncreaseFontSize={() => adjustFontScale(0.1)}
+          onDecreaseFontSize={() => adjustFontScale(-0.1)}
         />
 
         {/* Main layout */}
-        <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
-          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} />
+        <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden", position: "relative" }}>
+          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} isMobile={isMobile} open={!isMobile || sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-          <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default" }}>
+          {isMobile && (
+            <Box
+              onClick={() => setSidebarOpen((v) => !v)}
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 22,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+                borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                color: "text.secondary",
+                cursor: "pointer",
+                zIndex: 1,
+                transition: "background-color 0.15s",
+                "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)" },
+              }}
+            >
+              {sidebarOpen ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+            </Box>
+          )}
+
+          <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default", pl: isMobile ? "22px" : 0 }}>
             <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} playerName={playerCharacter?.name} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => prev.filter((e) => e.id !== id)); }} />
             <InputBar
               onSubmit={handleSubmit}

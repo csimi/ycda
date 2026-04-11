@@ -3,7 +3,8 @@ import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
 import { distance } from "fastest-levenshtein";
 
-const MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
+const DEFAULT_MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
+const MODEL_STORAGE_KEY = "modelId";
 
 // Tokens reserved for the model's own output
 const GENERATION_BUDGET = 384;
@@ -102,6 +103,13 @@ export const AVAILABLE_MODELS = [
   { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",      label: "Qwen 2.5 7B",       size: "~4.2 GB", contextWindow: 4096 },
   { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096 },
 ];
+
+function getInitialModelId() {
+  const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+  if (stored && AVAILABLE_MODELS.some((m) => m.id === stored)) return stored;
+  return DEFAULT_MODEL_ID;
+}
+
 export const STREAMING_ENTRY_ID = "__streaming__";
 
 const REFUSAL_RE = [
@@ -263,7 +271,7 @@ function buildBriefingPayload({ description, characters, npcs, extraContext }) {
 export function useLLM() {
   const [status, setStatus] = useState("uninitialized");
   const [progress, setProgress] = useState(0);
-  const [modelId, setModelId] = useState(MODEL_ID);
+  const [modelId, setModelId] = useState(getInitialModelId);
   const engineRef = useRef(null);
   const historyRef = useRef([]);
   const rosterRef = useRef([]);
@@ -273,7 +281,7 @@ export function useLLM() {
   // Each item: { histIdx: number, items: Array<{ id, raw: string }> }
   const entryBatchesRef = useRef([]);
   const contextWindowRef = useRef(
-    AVAILABLE_MODELS.find((m) => m.id === MODEL_ID)?.contextWindow ?? 4096
+    AVAILABLE_MODELS.find((m) => m.id === modelId)?.contextWindow ?? 4096
   );
 
   useEffect(() => {
@@ -288,7 +296,7 @@ export function useLLM() {
     statusRef.current = "loading";
 
     engine
-      .reload(MODEL_ID, { temperature: 0.9, top_p: 0.95 })
+      .reload(modelId, { temperature: 0.9, top_p: 0.95 })
       .then(() => {
         setStatus("ready");
         statusRef.current = "ready";
@@ -456,6 +464,7 @@ export function useLLM() {
     try {
       await engineRef.current.reload(newModelId, { temperature: 0.9, top_p: 0.95 });
       setModelId(newModelId);
+      localStorage.setItem(MODEL_STORAGE_KEY, newModelId);
       contextWindowRef.current = AVAILABLE_MODELS.find((m) => m.id === newModelId)?.contextWindow ?? 4096;
       setStatus("ready");
       statusRef.current = "ready";

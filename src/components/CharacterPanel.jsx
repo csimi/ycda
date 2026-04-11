@@ -144,24 +144,45 @@ function SectionHeader({ label, isDark }) {
   );
 }
 
-export default function CharacterPanel({ isDark, npcs, characters }) {
+export default function CharacterPanel({ isDark, npcs, characters, isMobile = false, open = true, onClose }) {
   const panelBg = modeColor(isDark, "#0f1117", "#f8f7f4");
   const panelBorder = modeColor(isDark, "rgba(255,255,255,0.08)", "rgba(0,0,0,0.1)");
   const initialNpcIds = new Set(npcs.filter((n) => Number.isInteger(n.id)).map((n) => n.id));
 
+  if (isMobile && !open) return null;
+
   return (
-    <Box
-      sx={{
-        width: 180,
-        flexShrink: 0,
-        height: "100%",
-        bgcolor: panelBg,
-        borderRight: `1px solid ${panelBorder}`,
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-      }}
-    >
+    <>
+      {isMobile && (
+        <Box
+          onClick={onClose}
+          sx={{
+            position: "fixed",
+            inset: 0,
+            bgcolor: "rgba(0,0,0,0.5)",
+            zIndex: 1200,
+          }}
+        />
+      )}
+      <Box
+        sx={{
+          width: isMobile ? "min(320px, 85vw)" : 360,
+          flexShrink: 0,
+          height: "100%",
+          bgcolor: panelBg,
+          borderRight: `1px solid ${panelBorder}`,
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+          ...(isMobile && {
+            position: "fixed",
+            top: 0,
+            left: 0,
+            zIndex: 1201,
+            boxShadow: "4px 0 24px rgba(0,0,0,0.35)",
+          }),
+        }}
+      >
       <SectionHeader label="Party" isDark={isDark} />
       <Box sx={{ p: 1.2 }}>
         {characters.map((c) => (
@@ -175,6 +196,7 @@ export default function CharacterPanel({ isDark, npcs, characters }) {
           <NpcCard key={n.id} npc={n} isDark={isDark} isNew={!initialNpcIds.has(n.id)} />
         ))}
       </Box>
-    </Box>
+      </Box>
+    </>
   );
 }

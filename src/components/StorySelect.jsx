@@ -128,21 +128,22 @@ function UploadCard({ onUpload, isDark }) {
   );
 }
 
-export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory, saves, onLoadSave, onDeleteSave, onOpenSavesDialog }) {
+export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory, saves, onLoadSave, onDeleteSave, onOpenSavesDialog, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100%",
         bgcolor: "background.default",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} onOpenSaves={onOpenSavesDialog} />
+      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} onSwitchModel={onSwitchModel} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} onOpenSaves={onOpenSavesDialog} isMobile={isMobile} fontSerif={fontSerif} onToggleFontSerif={onToggleFontSerif} fontScale={fontScale} onIncreaseFontSize={onIncreaseFontSize} onDecreaseFontSize={onDecreaseFontSize} />
+      <Box sx={{ flexGrow: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
       {/* Hero */}
       <Box sx={{ px: 4, pt: 6, pb: 3, maxWidth: 760, mx: "auto", width: "100%", textAlign: "center" }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1.5, fontFamily: "'Georgia', serif" }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1.5 }}>
           You Can Do Anything
         </Typography>
         <Typography sx={{ color: "text.secondary", fontSize: "1rem", lineHeight: 1.7 }}>
@@ -208,22 +209,23 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
       )}
 
       {/* Story grid */}
-      <Box sx={{ px: 4, pb: 6, maxWidth: 900, mx: "auto", width: "100%" }}>
+      <Box sx={{ px: 4, pb: 6, maxWidth: 1440, mx: "auto", width: "100%" }}>
         <Grid container spacing={2.5}>
           {builtinStories.map((story) => (
-            <Grid item xs={12} sm={6} md={4} key={story.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={story.id}>
               <StoryCard story={story} onPlay={onPlay} isDark={isDark} />
             </Grid>
           ))}
           {uploadedStories.map((story) => (
-            <Grid item xs={12} sm={6} md={4} key={story.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={story.id}>
               <StoryCard story={story} onPlay={onPlay} isDark={isDark} />
             </Grid>
           ))}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <UploadCard onUpload={onUploadStory} isDark={isDark} />
           </Grid>
         </Grid>
+      </Box>
       </Box>
     </Box>
   );

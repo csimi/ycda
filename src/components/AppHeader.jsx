@@ -2,15 +2,22 @@ import { useState } from "react";
 import {
   Box, Typography, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button,
+  Menu, MenuItem, ListItemIcon, ListItemText, Divider,
 } from "@mui/material";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SaveIcon from "@mui/icons-material/Save";
+import TextIncreaseIcon from "@mui/icons-material/TextIncrease";
+import TextDecreaseIcon from "@mui/icons-material/TextDecrease";
+import TextFormatIcon from "@mui/icons-material/TextFormat";
+import MenuIcon from "@mui/icons-material/Menu";
 import LLMStatusBar from "./LLMStatusBar";
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, onSwitchModel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const closeMenu = () => setMenuAnchor(null);
 
   return (
     <>
@@ -71,38 +78,119 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
         )}
         <Box sx={{ flexGrow: 1 }} />
         <LLMStatusBar status={llmStatus} modelId={llmModelId} onSwitchModel={onSwitchModel} />
-        {onOpenSaves && (
-          <Tooltip title="Saved games">
-            <IconButton onClick={onOpenSaves} size="small" sx={{ color: "text.secondary" }}>
-              <SaveIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        {isMobile ? (
+          <>
+            <Tooltip title="Options">
+              <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} size="small" sx={{ color: "text.secondary" }}>
+                <MenuIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={menuAnchor}
+              open={!!menuAnchor}
+              onClose={closeMenu}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+              {onTogglePregeneration != null && (
+                <MenuItem onClick={() => { onTogglePregeneration(); closeMenu(); }}>
+                  <ListItemIcon><AutoAwesomeIcon fontSize="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }} /></ListItemIcon>
+                  <ListItemText>Narrator briefing: {pregenerationEnabled ? "on" : "off"}</ListItemText>
+                </MenuItem>
+              )}
+              {onOpenSaves && (
+                <MenuItem onClick={() => { onOpenSaves(); closeMenu(); }}>
+                  <ListItemIcon><SaveIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText>Saved games</ListItemText>
+                </MenuItem>
+              )}
+              <Divider />
+              {onToggleFontSerif && (
+                <MenuItem onClick={() => { onToggleFontSerif(); closeMenu(); }}>
+                  <ListItemIcon><TextFormatIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText>Font: {fontSerif ? "serif" : "sans-serif"}</ListItemText>
+                </MenuItem>
+              )}
+              {onDecreaseFontSize && (
+                <MenuItem onClick={() => { onDecreaseFontSize(); }} disabled={(fontScale ?? 1) <= 0.8}>
+                  <ListItemIcon><TextDecreaseIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText>Decrease text ({Math.round((fontScale ?? 1) * 100)}%)</ListItemText>
+                </MenuItem>
+              )}
+              {onIncreaseFontSize && (
+                <MenuItem onClick={() => { onIncreaseFontSize(); }} disabled={(fontScale ?? 1) >= 1.6}>
+                  <ListItemIcon><TextIncreaseIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText>Increase text ({Math.round((fontScale ?? 1) * 100)}%)</ListItemText>
+                </MenuItem>
+              )}
+              <Divider />
+              <MenuItem onClick={() => { onToggleTheme(); closeMenu(); }}>
+                <ListItemIcon>{isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}</ListItemIcon>
+                <ListItemText>{isDark ? "Light mode" : "Dark mode"}</ListItemText>
+              </MenuItem>
+            </Menu>
+          </>
+        ) : (
+          <>
+            {onTogglePregeneration != null && (
+              <Tooltip
+                title={
+                  <Box>
+                    <Box sx={{ fontWeight: 600, mb: 0.3 }}>
+                      Narrator briefing: {pregenerationEnabled ? "on" : "off"}
+                    </Box>
+                    <Box sx={{ fontSize: "0.75rem", color: "inherit", opacity: 0.85 }}>
+                      When on, the AI reads the story description before you start and writes a private briefing for itself — giving it better atmosphere, character voice, and narrative focus. Adds ~5–10 s at story load.
+                    </Box>
+                  </Box>
+                }
+                arrow
+                placement="bottom-end"
+              >
+                <IconButton onClick={onTogglePregeneration} size="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }}>
+                  <AutoAwesomeIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {onOpenSaves && (
+              <Tooltip title="Saved games">
+                <IconButton onClick={onOpenSaves} size="small" sx={{ color: "text.secondary" }}>
+                  <SaveIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {onToggleFontSerif && (
+              <Tooltip title={`Font: ${fontSerif ? "serif" : "sans-serif"} (click to switch)`}>
+                <IconButton onClick={onToggleFontSerif} size="small" sx={{ color: "text.secondary", width: 30, height: 30, fontWeight: 700, fontSize: "0.95rem" }}>
+                  A
+                </IconButton>
+              </Tooltip>
+            )}
+            {onDecreaseFontSize && (
+              <Tooltip title={`Decrease font size (${Math.round((fontScale ?? 1) * 100)}%)`}>
+                <span>
+                  <IconButton onClick={onDecreaseFontSize} size="small" sx={{ color: "text.secondary" }} disabled={(fontScale ?? 1) <= 0.8}>
+                    <TextDecreaseIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {onIncreaseFontSize && (
+              <Tooltip title={`Increase font size (${Math.round((fontScale ?? 1) * 100)}%)`}>
+                <span>
+                  <IconButton onClick={onIncreaseFontSize} size="small" sx={{ color: "text.secondary" }} disabled={(fontScale ?? 1) >= 1.6}>
+                    <TextIncreaseIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+              <IconButton onClick={onToggleTheme} size="small" sx={{ color: "text.secondary" }}>
+                {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+          </>
         )}
-        {onTogglePregeneration != null && (
-          <Tooltip
-            title={
-              <Box>
-                <Box sx={{ fontWeight: 600, mb: 0.3 }}>
-                  Narrator briefing: {pregenerationEnabled ? "on" : "off"}
-                </Box>
-                <Box sx={{ fontSize: "0.75rem", color: "inherit", opacity: 0.85 }}>
-                  When on, the AI reads the story description before you start and writes a private briefing for itself — giving it better atmosphere, character voice, and narrative focus. Adds ~5–10 s at story load.
-                </Box>
-              </Box>
-            }
-            arrow
-            placement="bottom-end"
-          >
-            <IconButton onClick={onTogglePregeneration} size="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }}>
-              <AutoAwesomeIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-          <IconButton onClick={onToggleTheme} size="small" sx={{ color: "text.secondary" }}>
-            {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-          </IconButton>
-        </Tooltip>
       </Box>
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>

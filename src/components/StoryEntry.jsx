@@ -200,7 +200,6 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
             fontStyle: "italic",
             fontSize: "0.95rem",
             lineHeight: 1.75,
-            fontFamily: "'Georgia', serif",
           }}
         >
           {entry.text}

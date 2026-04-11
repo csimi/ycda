@@ -96,7 +96,7 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, 
         gap: 1,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 1.5, rowGap: 1 }}>
         <Button
           variant="outlined"
           size="small"
@@ -221,39 +221,37 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, 
         </ToggleButtonGroup>
 
         {scenarios.length > 0 && (
-          <>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => setScenariosOpen((v) => !v)}
-              startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
-              sx={{
-                textTransform: "none",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                borderRadius: "8px",
-                px: 1.2,
-                py: 0.4,
-                whiteSpace: "nowrap",
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setScenariosOpen((v) => !v)}
+            startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
+            sx={{
+              ml: "auto",
+              textTransform: "none",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              borderRadius: "8px",
+              px: 1.2,
+              py: 0.4,
+              whiteSpace: "nowrap",
                 borderColor: scenariosOpen
-                  ? "rgba(168,85,247,0.5)"
-                  : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
-                color: scenariosOpen
-                  ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
-                  : "text.secondary",
-                bgcolor: scenariosOpen
-                  ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
-                  : "transparent",
-                "&:hover": {
-                  borderColor: "rgba(168,85,247,0.5)",
-                  bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
-                },
-              }}
-            >
-              Scenarios
-            </Button>
-          </>
+                ? "rgba(168,85,247,0.5)"
+                : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+              color: scenariosOpen
+                ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
+                : "text.secondary",
+              bgcolor: scenariosOpen
+                ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
+                : "transparent",
+              "&:hover": {
+                borderColor: "rgba(168,85,247,0.5)",
+                bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
+              },
+            }}
+          >
+            Scenarios
+          </Button>
         )}
       </Box>
 

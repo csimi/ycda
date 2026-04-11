@@ -16,6 +16,12 @@ export default function StorySetup({
   onSwitchModel,
   pregenerationEnabled,
   onTogglePregeneration,
+  isMobile,
+  fontSerif,
+  onToggleFontSerif,
+  fontScale,
+  onIncreaseFontSize,
+  onDecreaseFontSize,
 }) {
   const player = story.characters?.find((c) => c.isPlayer);
 
@@ -31,7 +37,7 @@ export default function StorySetup({
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: "100%", bgcolor: "background.default", display: "flex", flexDirection: "column" }}>
       <AppHeader
         isDark={isDark}
         onToggleTheme={onToggleTheme}
@@ -41,9 +47,15 @@ export default function StorySetup({
         onSwitchModel={onSwitchModel}
         pregenerationEnabled={pregenerationEnabled}
         onTogglePregeneration={onTogglePregeneration}
+        isMobile={isMobile}
+        fontSerif={fontSerif}
+        onToggleFontSerif={onToggleFontSerif}
+        fontScale={fontScale}
+        onIncreaseFontSize={onIncreaseFontSize}
+        onDecreaseFontSize={onDecreaseFontSize}
       />
 
-      <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 3 }}>
+      <Box sx={{ flexGrow: 1, overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center", px: 3, py: 3 }}>
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -58,7 +70,7 @@ export default function StorySetup({
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 700, mb: 0.5, fontFamily: "'Georgia', serif" }}
+            sx={{ fontWeight: 700, mb: 0.5 }}
           >
             {story.title}
           </Typography>
