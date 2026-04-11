@@ -1,0 +1,129 @@
+{
+  "id": "black-signal",
+  "title": "Black Signal",
+  "description": "The city has had supervillains before — costumed thugs with a gimmick, small-time masterminds who lasted a month. You intend to be different. You have a lair, a lieutenant who walks through shadows, a gadget-smith with a dangerous imagination, and a plan that ends with your name on every screen in the city. The hero who calls herself Prism has already started looking for you. Don't give her time to catch up.",
+  "scenarios": [
+    { "id": "s1", "label": "Signature heist", "icon": "🏦", "prompt": "You target something high-profile — a museum wing, a corporate vault, a charity benefit full of diamonds and powered guests. Something that will put your name on the morning news. Describe the planning, the break-in, the escape, and the complication that was not in the plan." },
+    { "id": "s2", "label": "Clash with Prism", "icon": "⚡", "prompt": "Prism has found you — or you have engineered the encounter. A rooftop, a half-built tower, a downtown avenue with civilians watching. Describe the first exchange of powers, the banter between you, and the moment one of you decides to push past the choreography and make the fight real." },
+    { "id": "s3", "label": "Hijack a broadcast", "icon": "📺", "prompt": "You seize a citywide broadcast feed and deliver your manifesto directly to the people of the city. Describe what you say, how you frame yourself (liberator, reaper, prince of the city, patient surgeon), and how the authorities and the public react in real time." },
+    { "id": "s4", "label": "Dr. Ivek's breakthrough", "icon": "🔬", "prompt": "Dr. Ivek has finished a new device and wants you down at the workshop for a live demonstration. Describe the device, the demonstration going thrillingly right or alarmingly wrong, and what you decide to do with the result." },
+    { "id": "s5", "label": "Parley with Kingfisher", "icon": "🦹", "prompt": "Kingfisher, the city's elder villain and underworld broker, invites you to a private dinner at his penthouse. He has opinions about your rise. Describe the meeting, the power play beneath the hospitality, and the deal you offer — or refuse." },
+    { "id": "s6", "label": "Recruit henchmen", "icon": "👥", "prompt": "You hold private auditions for a new wave of henchmen — defectors from rival crews, desperate powered individuals, thugs with a debt to pay. Describe the candidates, the tests you set them, the ones you keep, and the one who turns out to be more — or worse — than they appeared." },
+    { "id": "s7", "label": "Lair compromised", "icon": "🏚️", "prompt": "Someone has found the lair. Alarms tear through the corridors, cameras go dark one by one, and whatever is coming is already inside the outer doors. Describe the defence, the retreat, and whoever — hero, cop, or rival villain — is leading the assault." },
+    { "id": "s8", "label": "Charity gala infiltration", "icon": "🎭", "prompt": "You attend a black-tie charity gala in civilian clothes, moving among the very people you intend to bleed. Describe the room, the conversations, the moment you nearly give yourself away, and what you walk out with when the night ends." },
+    { "id": "s9", "label": "Supermax breakout", "icon": "🚨", "prompt": "You have been captured. You sit in a reinforced cell designed to neutralise your powers — for now. Describe how you break out, what you take from the facility on the way, and who you bring with you when you go." }
+  ],
+  "setup": [
+    { "field": "name", "label": "Your villain alias" },
+    { "field": "gender", "label": "Your gender" },
+    { "field": "description", "label": "Describe yourself (follows \"You are\")", "multiline": true, "default": "a self-made prodigy with a grudge and an excellent tailor. You were not born into money — you certainly were not born into power. Both now belong to you, and you intend to keep them by making the city too frightened to take them back." },
+    { "field": "power", "label": "Your signature power (follows \"Your power is\")", "multiline": true, "default": "electromagnetic inversion — you can reverse the polarity of any field you touch, turning magnets into repellents, cameras into static, guns into slag, and elevators into coffins. It does not work on flesh. Yet." },
+    { "field": "goal", "label": "Your goal (follows \"You want\")", "multiline": true, "default": "to replace the city's mayor with someone you own, inside six months, without ever running for the office yourself. The first three steps of the plan are already in motion. The fourth is the one that will hurt someone." }
+  ],
+  "characters": [
+    {
+      "id": 1,
+      "name": "Vex",
+      "class": "Supervillain",
+      "avatar": "🦹",
+      "gender": "Male",
+      "isPlayer": true
+    },
+    {
+      "id": 2,
+      "name": "Wraith",
+      "class": "Lieutenant — Shadow Operative",
+      "avatar": "🥷",
+      "gender": "Female",
+      "isPlayer": false,
+      "disposition": "friendly"
+    },
+    {
+      "id": 3,
+      "name": "Dr. Ivek",
+      "class": "Gadget Smith",
+      "avatar": "🧑‍🔬",
+      "gender": "Male",
+      "isPlayer": false,
+      "disposition": "friendly"
+    }
+  ],
+  "npcs": [
+    {
+      "id": 101,
+      "name": "Prism",
+      "role": "Hero Nemesis",
+      "avatar": "🌈",
+      "gender": "Female",
+      "disposition": "hostile",
+      "note": "The city's premier metahuman hero. Her power — a hard-light prismatic armour that bends and refracts any directed energy — makes her one of the few fighters who can stand against you for more than ten seconds. She has decided, personally, that you are her problem."
+    },
+    {
+      "id": 102,
+      "name": "Detective Reyes",
+      "role": "Anti-Powers Task Force Lead",
+      "avatar": "🕵️",
+      "gender": "Female",
+      "disposition": "hostile",
+      "note": "Runs the city's anti-powers unit with a handful of loyal cops and a shrinking budget. No powers of her own — just a very good record, a very good memory, and a very slow patience. The kind of opponent who is more dangerous than Prism in the long run."
+    },
+    {
+      "id": 103,
+      "name": "Kingfisher",
+      "role": "Elder Villain — Underworld Broker",
+      "avatar": "🕴️",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "Ran half the city's criminal underground for thirty years before you turned up. Old-school, impeccable suits, a quiet power that lets him see the next three moves of any conversation. Has not yet decided whether you are a useful pupil or a rival to be drowned in the harbour."
+    }
+  ],
+  "entries": [
+    {
+      "id": 1,
+      "type": "story",
+      "text": "The penthouse is dark except for the glow of a dozen monitors. The city stretches out beyond the reinforced glass — a grid of lights, a siren bloom, a police helicopter drifting through the downtown columns. The lair cost three heists to afford and is, for the moment, invisible to every registered surveillance network in the city."
+    },
+    {
+      "id": 2,
+      "type": "story",
+      "text": "You are ${description}"
+    },
+    {
+      "id": 3,
+      "type": "story",
+      "text": "Your power is ${power}"
+    },
+    {
+      "id": 4,
+      "type": "story",
+      "text": "You want ${goal}"
+    },
+    {
+      "id": 5,
+      "type": "story",
+      "text": "A silhouette peels away from the shadow of the far wall — Wraith. She has been in the room the entire time. She moves like someone who does not entirely believe in doorways, and a sleek tablet glows faintly in her gloved hand."
+    },
+    {
+      "id": 6,
+      "type": "say",
+      "character": "Wraith",
+      "text": "Channel Seven has you as the top story. They're calling you 'the Signal.' The commissioner just held a press conference — she says she has a meta on call to handle you personally. Prism is back in the city."
+    },
+    {
+      "id": 7,
+      "type": "story",
+      "text": "The largest monitor flickers to life on a secure channel. Dr. Ivek's face fills the screen, lab coat stained with something iridescent, hair a disaster, eyes bright with the specific mania of a scientist who has not slept in two days."
+    },
+    {
+      "id": 8,
+      "type": "say",
+      "character": "Dr. Ivek",
+      "text": "Boss. I finished the prototype. The one I told you couldn't exist for another three weeks. I was wrong about three weeks — it wants to be finished. Come down to the workshop tonight. Bring someone strong, or bring a firewall, I'm not entirely sure which."
+    },
+    {
+      "id": 9,
+      "type": "story",
+      "text": "On another monitor, the late news cuts to a rooftop shot — a woman in a prismatic bodysuit landing on the edge, surveying the skyline. The chyron beneath her reads: PRISM RETURNS — 'SIGNAL' THREAT GROWS."
+    }
+  ]
+}

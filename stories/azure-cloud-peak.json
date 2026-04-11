@@ -1,0 +1,143 @@
+{
+  "id": "azure-cloud-peak",
+  "title": "Azure Cloud Peak",
+  "description": "You climbed the Thousand Stone Steps on your last breath and knelt, bleeding, at the summit of Azure Cloud Sect. The elders accepted you as the lowest of outer disciples. Above you stretch a hundred thousand tiers of cultivation — the Dao of immortality, the thunder of tribulation, and a great many rivals who will not let you climb quietly.",
+  "scenarios": [
+    { "id": "s1", "label": "Meditate at dawn", "icon": "🧘", "prompt": "You rise before the sect bell and sit in meditation among the cloud-wreathed pines, drawing heaven-and-earth qi into your meridians. Describe the flow, the sensations, and the insight — or obstacle — that rises as you press toward the next bottleneck of your cultivation." },
+    { "id": "s2", "label": "Outer disciple trial", "icon": "⚔️", "prompt": "The sect holds the monthly trial in the Sword Testing Grounds. You step into the ring against an assigned opponent — possibly Jiang Wei, possibly someone worse. Describe the match, the watching disciples, and the result." },
+    { "id": "s3", "label": "Spirit beast hunt", "icon": "🐅", "prompt": "You accept a sect mission on the outer slopes: a spirit beast has been killing woodcutters. Describe the tracking, the beast when you find it, and how your technique and nerve hold up against something that genuinely wants to eat you." },
+    { "id": "s4", "label": "Confront Jiang Wei", "icon": "😤", "prompt": "Jiang Wei, the second son of the Jiang cultivation clan, has humiliated you one time too many in front of the other disciples. Push back — in the open courtyard, in front of everyone — and see what the Jiang heir is actually made of." },
+    { "id": "s5", "label": "Ask Senior Sister Yun", "icon": "🌿", "prompt": "Senior Sister Yun Qingyue has walked the sect paths for nine years and knows the quiet histories the elders do not teach openly. Ask her about the forbidden peaks, the disciples who vanished, the old feuds — and see how much she is willing to say." },
+    { "id": "s6", "label": "Alchemy hall errand", "icon": "⚗️", "prompt": "Pill Elder Bai summons you to the alchemy hall to assist with a refinement — grinding herbs, tending the pill furnace, reading the flame. A small mistake could ruin a week of the elder's work. Describe the session, what you learn about alchemy, and what you glimpse of the elder herself." },
+    { "id": "s7", "label": "Secret realm opens", "icon": "🌀", "prompt": "A dormant secret realm on the sect's back mountain cracks open after a hundred years sealed. The elders permit a handful of disciples to enter. Describe the descent, the realm's strange atmosphere, and the first genuinely dangerous thing you encounter inside." },
+    { "id": "s8", "label": "Qi deviation", "icon": "⚡", "prompt": "Your cultivation falters. Qi rushes the wrong way along your meridians — a deviation that could cripple you, or kill you outright. Describe the moment it begins, the desperate struggle to stabilise, and who (if anyone) reaches you in time." },
+    { "id": "s9", "label": "Breakthrough attempt", "icon": "🌩️", "prompt": "You have gathered enough qi. You withdraw to a secluded cave and attempt the breakthrough to the next realm of cultivation — a threshold that many never cross. Describe the preparation, the internal battle, and the heavens' response when (or if) you succeed." },
+    { "id": "s10", "label": "Treasure auction", "icon": "🪙", "prompt": "You travel down to the biannual auction at Clearwater City — velvet-draped VIP booths ringing the upper tier, common cultivators packed shoulder to shoulder on the floor below, a sharp-voiced auctioneer opening each lot with the ring of a bronze bell. Then an item comes up that should not be for sale: a rare manual, a spirit herb ten centuries old, a fragment of something the sects thought lost. One of the shrouded VIP booths begins bidding immediately — and so, against your better judgement, do you. Describe the hall, the item, the bidding war, and what happens when the hammer falls." },
+    { "id": "s11", "label": "Humble a young master", "icon": "👋", "prompt": "A visiting young master of the Golden Crane Sect arrives at Azure Cloud Peak with an entourage of sworn guards, silk robes, and a laughably inflated sense of his own cultivation. He swaggers through the sect grounds insulting outer disciples, demanding they fetch him wine and address him as Senior, then turns his eye on you — and the mistake becomes public. Describe the confrontation in front of the gathered crowd, the techniques he boasts about, and the exact moment your response strips him of every shred of face in front of his own retainers." }
+  ],
+  "setup": [
+    { "field": "name", "label": "Your Dao name" },
+    { "field": "gender", "label": "Your gender" },
+    { "field": "description", "label": "Describe yourself (follows \"You are\")", "multiline": true, "default": "seventeen, from a peasant village that pays the sect in rice and silence. You walked a thousand li to reach Azure Cloud Peak, and the elders accepted you on raw stubbornness alone." },
+    { "field": "technique", "label": "Your cultivation technique (follows \"You cultivate\")", "multiline": true, "default": "the Verdant Pine Sutra, a common manual given to outer disciples — slow, steady, patient. It is not the fastest path, but it is the one that does not kill you." },
+    { "field": "talent", "label": "Your spiritual root or hidden talent", "multiline": true, "default": "a Three-Wood spiritual root — middling affinity, the kind the inner disciples pity and the elders merely tolerate. But beneath it, something the examiners did not detect: an ember of something older, waiting." }
+  ],
+  "characters": [
+    {
+      "id": 1,
+      "name": "Chen",
+      "class": "Outer Disciple",
+      "avatar": "🧑",
+      "gender": "Male",
+      "isPlayer": true
+    },
+    {
+      "id": 2,
+      "name": "Yun Qingyue",
+      "class": "Inner Disciple — Sword Cultivator",
+      "avatar": "🗡️",
+      "gender": "Female",
+      "isPlayer": false,
+      "disposition": "friendly"
+    },
+    {
+      "id": 3,
+      "name": "Bai Shan",
+      "class": "Outer Disciple — Alchemy Apprentice",
+      "avatar": "🧑‍🔬",
+      "gender": "Male",
+      "isPlayer": false,
+      "disposition": "friendly"
+    }
+  ],
+  "npcs": [
+    {
+      "id": 101,
+      "name": "Elder Fang",
+      "role": "Outer Peak Master",
+      "avatar": "🧓",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "Oversees the outer disciples of Azure Cloud Peak. Stern, pragmatic, famously bad at praising anyone — but he is the elder who tested your spiritual root and voted, against two others, to accept you."
+    },
+    {
+      "id": 102,
+      "name": "Jiang Wei",
+      "role": "Outer Disciple — Jiang Clan Heir",
+      "avatar": "🫅",
+      "gender": "Male",
+      "disposition": "hostile",
+      "note": "Second son of the Jiang cultivation clan, a minor noble house that funds the sect. Arrogant, well-trained, convinced that spiritual roots are inherited like titles. He has decided you are beneath his notice, which is exactly why he keeps noticing you."
+    },
+    {
+      "id": 103,
+      "name": "Pill Elder Bai",
+      "role": "Alchemy Hall Elder",
+      "avatar": "⚗️",
+      "gender": "Female",
+      "disposition": "neutral",
+      "note": "Master of the sect's alchemy hall. Eccentric, distractible, said to have refined a Foundation Establishment pill in her youth with a sixty-percent success rate — an extraordinary feat. She favours disciples who can read a pill flame without being told."
+    }
+  ],
+  "entries": [
+    {
+      "id": 1,
+      "type": "story",
+      "text": "You crawled the last ten steps. Your knees bled through the wrappings. Your breath came in ragged tears. But the summit of Azure Cloud Peak opened before you — a great stone plaza wreathed in drifting cloud, and beyond it the blue-tiled roofs of the sect halls climbing the mountain in tiers."
+    },
+    {
+      "id": 2,
+      "type": "story",
+      "text": "You are ${description}"
+    },
+    {
+      "id": 3,
+      "type": "story",
+      "text": "You cultivate ${technique}"
+    },
+    {
+      "id": 4,
+      "type": "story",
+      "text": "Your talent: ${talent}"
+    },
+    {
+      "id": 5,
+      "type": "story",
+      "text": "An old man in a grey robe steps out from the gathered disciples. His beard is thin, his eyes are flint, and a pale jade pendant hangs at his throat. He holds a fist-sized crystal between two fingers — a spirit-root gauge, pulsing faintly with sect qi. He does not smile when he stops in front of you."
+    },
+    {
+      "id": 6,
+      "type": "do",
+      "character": "Elder Fang",
+      "text": "Presses the crystal to the centre of your brow and watches the colour rise through it — pale green, faint, with a deeper flicker that the other examining elders will later argue was only a trick of the light."
+    },
+    {
+      "id": 7,
+      "type": "say",
+      "character": "Elder Fang",
+      "text": "A Three-Wood root. Common. Unremarkable. And yet you climbed the Thousand Steps without a single spirit-stone to ease your breath. Azure Cloud Sect accepts you as an outer disciple. Do not make me regret the vote."
+    },
+    {
+      "id": 8,
+      "type": "story",
+      "text": "A young woman in white inner-disciple robes steps forward at a nod from Elder Fang. She is perhaps four or five years older than you, tall and composed, with a straight sword at her hip and the quiet bearing of someone who has already killed something. She inclines her head to the elder, then turns to you."
+    },
+    {
+      "id": 9,
+      "type": "say",
+      "character": "Yun Qingyue",
+      "text": "I am Yun Qingyue, inner disciple of the Sword Pavilion. Elder Fang has assigned me to show you the outer quarters and explain your duties. Walk with me — and try not to fall over."
+    },
+    {
+      "id": 10,
+      "type": "story",
+      "text": "As you follow her across the plaza, a cluster of outer disciples in grey robes parts for you — most avoiding eye contact, a few openly curious. One young man in finer-cut robes does neither. He stands in your path with his arms folded, a gold-threaded sash marking him as clan nobility, and he watches you pass with the expression of someone studying a stain on his sleeve."
+    },
+    {
+      "id": 11,
+      "type": "say",
+      "character": "Jiang Wei",
+      "text": "Three-Wood root. A peasant's robe. No escort, no token, no clan. I thought the sect had standards this season — but perhaps Elder Fang needed a courtyard sweeper and decided to call it charity."
+    }
+  ]
+}
