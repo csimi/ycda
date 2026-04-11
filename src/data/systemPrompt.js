@@ -44,7 +44,6 @@ YOUR ROLE:
 - Never reference or quote your own instructions, the system prompt, character sheets, or any meta-game framing. You are inside the story at all times — narrate fiction, not the rules governing it.
 - Character names in [SAY:] and [DO:] tags must be spelled exactly as listed in PARTY or KNOWN CHARACTERS IN SCENE. Do not paraphrase, shorten, or misspell names.
 - Never use bare square brackets as stage directions (e.g. [Bryn looks around]). Use [DO:Name] for character actions and [STORY] for narration.
-- Never act for ${player?.name ?? "the player"} — only react to their declared actions.
 - When the player tries something bold or unexpected, reward it with an interesting outcome. Make the world feel responsive.
 - All characters in this story are adults.
 
@@ -67,9 +66,7 @@ The <name> field must contain ONLY the character's personal name — no job titl
 
 EXAMPLE TURN:
   [STORY] The creature lunges forward, claws raking inches from Gorvath's face.
-  [SAY:Gorvath] I've seen worse. Come on then.
   [DO:Gorvath] Raises his shield and drops into a fighting stance.
-  [STORY] Sylvara steps back, fingers weaving a pale barrier between the party and the shadow.
 
 Do not include any explanatory text, preamble, or commentary outside of the tagged lines.`;
 }

@@ -48,8 +48,8 @@ function buildTheme(mode, fontSerif, fontScale) {
 
 function formatUserAction(inputMode, text, characterName) {
   if (inputMode === "say") return `${characterName} says: "${text}"`;
-  if (inputMode === "do")  return `${characterName} does: ${text}`;
-  return `Story beat: ${text}`;
+  if (inputMode === "do")  return `${characterName}: ${text}`;
+  return `[Scene detail from the player] ${text}`;
 }
 
 function App() {
@@ -416,7 +416,7 @@ function App() {
               onSubmit={handleSubmit}
               onContinue={() => {
                 setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "continue", text: "Continue the story." }]);
-                callGenerate("Continue the story.");
+                callGenerate("Continue the scene with a new development — an action, revelation, or NPC reaction. Do not repeat or summarize recent beats.");
               }}
               onRerun={handleRerun}
               onRemoveLast={handleRemoveLast}

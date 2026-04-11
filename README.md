@@ -35,9 +35,11 @@ The model is selected in-app via the AI status chip in the header. Weights are d
 | Llama 3.2 1B | ~0.8 GB | Fastest, weakest instruction following |
 | Llama 3.2 3B | ~1.8 GB | Good balance for low-end GPUs |
 | Phi 3.5 Mini 3.8B | ~2.2 GB | Strong instruction following for its size |
-| **Llama 3.1 8B** | ~4.5 GB | **Default**, recommended |
+| Llama 3.1 8B | ~4.5 GB | Solid general quality |
+| **Hermes 2 Pro 8B** | ~4.5 GB | **Default**, recommended — best tag-format adherence |
 | Qwen 2.5 7B | ~4.2 GB | Strong instruction following |
 | Mistral 7B | ~4.2 GB | Good general quality |
+| Gemma 2 9B | ~5.5 GB | Largest option, needs more VRAM |
 
 The 8B models require ~6 GB of available GPU memory. If generation stalls or the page crashes, switch to a smaller model.
 

@@ -3,7 +3,7 @@ import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
 import { distance } from "fastest-levenshtein";
 
-const DEFAULT_MODEL_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
+const DEFAULT_MODEL_ID = "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC";
 const MODEL_STORAGE_KEY = "modelId";
 
 // Tokens reserved for the model's own output
@@ -85,8 +85,8 @@ async function compactHistory(history, engine, contextWindow) {
   return {
     history: [
       system,
-      { role: "user",      content: `[Story so far — earlier events summarized]: ${summary}` },
-      { role: "assistant", content: "[Understood. Continuing from this point.]" },
+      { role: "user",      content: `Story so far — earlier events summarized:\n${summary}` },
+      { role: "assistant", content: "Understood. I will continue from this point using the same tagged output format." },
       ...toKeep,
     ],
     compacted: true,
@@ -100,8 +100,10 @@ export const AVAILABLE_MODELS = [
   { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 3B",      size: "~1.8 GB", contextWindow: 4096 },
   { id: "Phi-3.5-mini-instruct-q4f16_1-MLC",    label: "Phi 3.5 Mini 3.8B", size: "~2.2 GB", contextWindow: 4096 },
   { id: "Llama-3.1-8B-Instruct-q4f16_1-MLC",    label: "Llama 3.1 8B",      size: "~4.5 GB", contextWindow: 4096 },
+  { id: "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",  label: "Hermes 2 Pro 8B",   size: "~4.5 GB", contextWindow: 4096 },
   { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",      label: "Qwen 2.5 7B",       size: "~4.2 GB", contextWindow: 4096 },
   { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096 },
+  { id: "gemma-2-9b-it-q4f16_1-MLC",            label: "Gemma 2 9B",        size: "~5.5 GB", contextWindow: 4096 },
 ];
 
 function getInitialModelId() {
@@ -122,7 +124,9 @@ const REFUSAL_RE = [
 
 function isRefusal(text) {
   // No valid tags at all → not following the format → treat as refusal
-  if (!/^\[(STORY|SAY:|DO:|NEW_CHAR:|KILL:)/m.test(text)) return true;
+  if (!/^\[(STORY|SAY:|DO:|NEW_CHAR:)/m.test(text)) return true;
+  // Any single line over 600 chars → model is rambling
+  if (text.split("\n").some((l) => l.length > 600)) return true;
   return REFUSAL_RE.some((re) => re.test(text));
 }
 
@@ -296,7 +300,7 @@ export function useLLM() {
     statusRef.current = "loading";
 
     engine
-      .reload(modelId, { temperature: 0.9, top_p: 0.95 })
+      .reload(modelId, { temperature: 0.7, top_p: 0.9 })
       .then(() => {
         setStatus("ready");
         statusRef.current = "ready";
@@ -345,7 +349,7 @@ export function useLLM() {
           stream: true,
           messages: historyRef.current,
           stream_options: { include_usage: true },
-          repetition_penalty: 1.2,
+          repetition_penalty: 1.1,
           max_tokens: GENERATION_BUDGET,
         });
 
@@ -462,7 +466,7 @@ export function useLLM() {
     statusRef.current = "loading";
     setProgress(0);
     try {
-      await engineRef.current.reload(newModelId, { temperature: 0.9, top_p: 0.95 });
+      await engineRef.current.reload(newModelId, { temperature: 0.7, top_p: 0.9 });
       setModelId(newModelId);
       localStorage.setItem(MODEL_STORAGE_KEY, newModelId);
       contextWindowRef.current = AVAILABLE_MODELS.find((m) => m.id === newModelId)?.contextWindow ?? 4096;
@@ -481,7 +485,7 @@ export function useLLM() {
     try {
       const result = await engineRef.current.chat.completions.create({
         messages: [
-          { role: "system", content: "You are a narrator briefing assistant. Given a story premise, produce a compact narrator briefing of 200–250 tokens. Cover: atmosphere and tone, each named character's motivation, the central tension, and 2–3 key world facts. Plain prose only — no tags, no bullet points." },
+          { role: "system", content: "You are a narrator briefing assistant. Produce a compact narrator briefing of 200–250 tokens. The main Narrator already knows the character names, classes, roles, and NPC notes — do NOT restate them. Focus only on: atmosphere and sensory tone, each named character's inner motivation (one line each), the central dramatic tension, and 2–3 world facts not obvious from the premise. Plain prose only — no tags, no bullet points, no character roster." },
           { role: "user", content: buildBriefingPayload({ description, characters, npcs, extraContext }) },
         ],
         temperature: 0.4, top_p: 0.9,

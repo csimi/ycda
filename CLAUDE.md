@@ -198,9 +198,11 @@ Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`):
 | Llama 3.2 1B | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~0.8 GB | 4096 |
 | Llama 3.2 3B | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~1.8 GB | 4096 |
 | Phi 3.5 Mini 3.8B | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.2 GB | 4096 |
-| **Llama 3.1 8B** *(default)* | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 |
+| Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 |
+| **Hermes 2 Pro 8B** *(default)* | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 |
 | Qwen 2.5 7B | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~4.2 GB | 4096 |
 | Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 |
+| Gemma 2 9B | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 |
 
 ## Save / load system
 
