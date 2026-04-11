@@ -2,6 +2,8 @@
 
 A text-based choose-your-own-adventure game powered by an in-browser AI Game Master. No server, no API key — the language model runs entirely on your GPU via WebGPU.
 
+**[Play it on GitHub Pages →](https://csimi.github.io/ycda/)**
+
 ## Requirements
 
 - A modern browser with **WebGPU support** (Chrome 113+, Edge 113+)
@@ -89,6 +91,7 @@ The file appears on the story selection screen automatically on next dev server 
 
 | Action | How |
 |--------|-----|
+| **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Continue** | Let the AI advance the story without player input |
 | **Re-run** | Discard the last AI response and generate a new one |
 | **Remove Last** | Delete the last entry from the feed and LLM history |
