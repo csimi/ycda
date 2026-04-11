@@ -438,7 +438,7 @@ function App() {
               canRemoveLast={entries.length > 0}
               scenarios={activeStory?.scenarios ?? []}
               isDark={isDark}
-              disabled={isGenerating || status === "loading" || status === "initializing"}
+              disabled={status !== "ready"}
               isGenerating={isGenerating}
             />
           </Box>

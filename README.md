@@ -6,9 +6,11 @@ A text-based choose-your-own-adventure game powered by an in-browser AI Game Mas
 
 ## Requirements
 
-- A modern browser with **WebGPU support** (Chrome 113+, Edge 113+)
+- A modern browser with **WebGPU support** (Chrome 113+, Edge 113+ on desktop; Chrome 121+ on Android)
 - A GPU with enough VRAM for your chosen model (see [Models](#models))
 - Node.js 18+
+
+Mobile is supported on a best-effort basis: see [Mobile](#mobile).
 
 ## Getting started
 
@@ -28,20 +30,24 @@ npm run preview     # serves the build locally
 
 ## Models
 
-The model is selected in-app via the AI status chip in the header. Weights are downloaded once and cached in the browser's Cache Storage API.
+The model is selected in-app via the AI status chip in the header. Weights are downloaded once and cached in the browser's Cache Storage API. While a model is downloading you can press the ✕ next to the chip to **cancel the load**; if a load fails, hover the red error chip for the exact reason from web-llm and press ↻ to retry.
 
-| Model | Size | Notes |
-|---|---|---|
-| Llama 3.2 1B | ~0.8 GB | Fastest, weakest instruction following |
-| Llama 3.2 3B | ~1.8 GB | Good balance for low-end GPUs |
-| Phi 3.5 Mini 3.8B | ~2.2 GB | Strong instruction following for its size |
-| Llama 3.1 8B | ~4.5 GB | Solid general quality |
-| **Hermes 2 Pro 8B** | ~4.5 GB | **Default**, recommended — best tag-format adherence |
-| Qwen 2.5 7B | ~4.2 GB | Strong instruction following |
-| Mistral 7B | ~4.2 GB | Good general quality |
-| Gemma 2 9B | ~5.5 GB | Largest option, needs more VRAM |
+| Model | Size | Mobile | Notes |
+|---|---|---|---|
+| **Llama 3.2 1B** | ~0.8 GB | ✅ | Fastest, weakest instruction following — **default on mobile** |
+| Llama 3.2 3B | ~1.8 GB | ⚠️ | Good balance for low-end GPUs; borderline on 8 GB phones |
+| Phi 3.5 Mini 3.8B | ~2.2 GB | ⚠️ | Strong instruction following for its size |
+| Llama 3.1 8B | ~4.5 GB | ❌ | Solid general quality |
+| **Hermes 2 Pro 8B** | ~4.5 GB | ❌ | **Default on desktop** — best tag-format adherence |
+| Qwen 2.5 7B | ~4.2 GB | ❌ | Strong instruction following |
+| Mistral 7B | ~4.2 GB | ❌ | Good general quality |
+| Gemma 2 9B | ~5.5 GB | ❌ | Largest option, needs more VRAM |
 
 The 8B models require ~6 GB of available GPU memory. If generation stalls or the page crashes, switch to a smaller model.
+
+## Mobile
+
+On a detected mobile device the app defaults to **Llama 3.2 1B** instead of Hermes 2 Pro 8B, and the model picker shows a warning header plus a green/amber/red dot next to each row reflecting how likely it is to run on phones. Realistically, only the 1B is a safe bet on a 1–2 year old Android flagship; 3B and Phi 3.5 Mini are borderline and may OOM on 8 GB devices; everything else is desktop-only. iOS Safari does not yet support WebGPU.
 
 ## Adding stories
 

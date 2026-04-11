@@ -150,8 +150,9 @@ Screen flow: **StorySelect** → *(if story.setup)* **StorySetup** → **Game**
 
 ```js
 const {
-  status, progress, modelId,
+  status, progress, modelId, error,
   generate, revertLast, cancel,
+  cancelLoad, retryLoad,
   setSystemPrompt, appendToSystemPrompt, seedInitialEntries,
   setRoster, switchModel,
   pruneEntries,
@@ -160,9 +161,11 @@ const {
 } = useLLM();
 ```
 
-- **status**: `"uninitialized"` → `"loading"` → `"ready"` ↔ `"generating"` | `"initializing"` | `"error"`
+- **status**: `"uninitialized"` → `"loading"` → `"ready"` ↔ `"generating"` | `"initializing"` | `"cancelled"` | `"error"`
   - `"initializing"` — narrator briefing pre-generation in progress
+  - `"cancelled"` — user aborted model loading via `cancelLoad`; engine has been unloaded
 - **modelId** — the currently loaded model ID string
+- **error** — string message from the most recent failed `loadModel` attempt, or `null`. Cleared at the start of each new load.
 - **`setSystemPrompt(str)`** — seeds `historyRef` with `[{ role: "system", content }]` and resets `entryBatchesRef`.
 - **`appendToSystemPrompt(str)`** — appends text to the existing system message (used by narrator briefing).
 - **`seedInitialEntries(entries)`** — injects the story's opening entries as an initial user+assistant pair in history so the LLM treats them as its own prior output.
@@ -174,8 +177,10 @@ const {
   - `onCompact(summary)` — called when context compaction runs; app adds a `"compact"` entry
 - **`revertLast()`** — pops the last user+assistant pair from history (used by Re-run).
 - **`cancel()`** — signals the current generation to stop after the stream drains.
+- **`cancelLoad()`** — aborts an in-flight model load. Bumps the internal load token, sets status to `"cancelled"`, then calls `engine.unload()`. web-llm wires its `reloadController` AbortSignal into all `fetchWithCache` calls, so `unload()` actually aborts the in-progress weight downloads (not just hides them from the UI).
+- **`retryLoad()`** — re-runs `loadModel` for the current `modelId`. Used from the `"cancelled"` and `"error"` states. New load attempts queue behind any in-flight one via `loadChainRef` so two reloads never run on the same engine concurrently.
 - **`setRoster(names)`** — updates the name list used for fuzzy SAY/DO matching.
-- **`switchModel(newModelId)`** — reloads the engine with a different model; resets progress.
+- **`switchModel(newModelId)`** — persists the choice to localStorage and delegates to `loadModel`. Allowed from `"ready"`, `"cancelled"`, and `"error"` states.
 - **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
 - **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
 - **`getSnapshot()`** → `{ history, entryBatches }` — serializable snapshot for saving.
@@ -191,18 +196,20 @@ When the estimated token count of `historyRef` exceeds 90 % of the model's conte
 
 ### Available models
 
-Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`):
+Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`). Each entry has a `mobile` flag — `"ok"` (fits comfortably on a 1–2 year old flagship), `"maybe"` (borderline, may OOM on 8 GB devices), `"no"` (almost certainly won't run on phones).
 
-| Label | Model ID | Size | Context |
-|-------|----------|------|---------|
-| Llama 3.2 1B | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~0.8 GB | 4096 |
-| Llama 3.2 3B | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~1.8 GB | 4096 |
-| Phi 3.5 Mini 3.8B | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.2 GB | 4096 |
-| Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 |
-| **Hermes 2 Pro 8B** *(default)* | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 |
-| Qwen 2.5 7B | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~4.2 GB | 4096 |
-| Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 |
-| Gemma 2 9B | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 |
+| Label | Model ID | Size | Context | Mobile |
+|-------|----------|------|---------|--------|
+| **Llama 3.2 1B** *(default on mobile)* | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~0.8 GB | 4096 | ok |
+| Llama 3.2 3B | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~1.8 GB | 4096 | maybe |
+| Phi 3.5 Mini 3.8B | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.2 GB | 4096 | maybe |
+| Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| **Hermes 2 Pro 8B** *(default on desktop)* | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| Qwen 2.5 7B | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~4.2 GB | 4096 | no |
+| Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 | no |
+| Gemma 2 9B | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 | no |
+
+`isMobileDevice()` (UA-based, also exported from `useLLM.js`) is used by `getInitialModelId` to pick the mobile default when no `modelId` is in localStorage.
 
 ## Save / load system
 
@@ -225,7 +232,7 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 ## AppHeader controls
 
 - **YCDA logo** — clicking while in-game opens a "Leave story?" confirm dialog; returns to StorySelect.
-- **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / error; click opens model switcher.
+- **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / cancelled / error; click opens model switcher (allowed from `ready`/`cancelled`/`error`). A ✕ button appears next to the chip while loading and triggers `cancelLoad`. A ↻ button appears in the `cancelled` and `error` states and triggers `retryLoad`. In the `error` state the chip is wrapped in a tooltip showing the exact failure message from web-llm. On detected mobile devices, the model menu shows a warning header and each row is annotated with a green/amber/red dot reflecting its `mobile` flag.
 - **Save icon** — opens `SavesDialog` in "save" mode (in-game only).
 - **AutoAwesome (✨) icon** — toggles narrator briefing (pre-generation). Stored in localStorage key `"pregen"`.
 - **Theme toggle** — light/dark, stored in localStorage key `"theme"`.
