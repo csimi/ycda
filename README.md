@@ -51,6 +51,11 @@ Create a JSON file in `stories/` following this schema:
   "title": "Story Title",
   "description": "One-paragraph blurb shown on the selection screen.",
 
+  // Optional: quick-action buttons shown in the input bar during play
+  "scenarios": [
+    { "id": "s1", "label": "Short label", "icon": "⚔️", "prompt": "Full prompt sent to the LLM when this card is tapped." }
+  ],
+
   // Optional: show a character setup form before starting
   "setup": [
     { "field": "name",       "label": "Your character's name" },
