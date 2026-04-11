@@ -67,7 +67,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
+  const { status, progress, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -306,6 +306,7 @@ function App() {
           llmStatus={status}
           llmProgress={progress}
           llmModelId={modelId}
+          llmError={llmError}
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
@@ -343,6 +344,7 @@ function App() {
           llmStatus={status}
           llmProgress={progress}
           llmModelId={modelId}
+          llmError={llmError}
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
@@ -371,6 +373,7 @@ function App() {
           llmStatus={status}
           llmProgress={progress}
           llmModelId={modelId}
+          llmError={llmError}
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}

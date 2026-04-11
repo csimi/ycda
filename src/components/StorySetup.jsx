@@ -13,6 +13,7 @@ export default function StorySetup({
   llmStatus,
   llmProgress,
   llmModelId,
+  llmError,
   onSwitchModel,
   onCancelLoad,
   onRetryLoad,
@@ -46,6 +47,7 @@ export default function StorySetup({
         llmStatus={llmStatus}
         llmProgress={llmProgress}
         llmModelId={llmModelId}
+        llmError={llmError}
         onSwitchModel={onSwitchModel}
         onCancelLoad={onCancelLoad}
         onRetryLoad={onRetryLoad}

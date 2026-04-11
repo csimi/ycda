@@ -24,7 +24,7 @@ const STATUS_CONFIG = {
   error:        { label: "AI error",           color: "error" },
 };
 
-export default function LLMStatusBar({ status, modelId, onSwitchModel, onCancelLoad, onRetryLoad }) {
+export default function LLMStatusBar({ status, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad }) {
   const [anchor, setAnchor] = useState(null);
 
   if (status === "uninitialized") return null;
@@ -33,21 +33,38 @@ export default function LLMStatusBar({ status, modelId, onSwitchModel, onCancelL
 
   const canSwitch = status === "ready" || status === "cancelled" || status === "error";
 
+  const chip = (
+    <Chip
+      icon={<SmartToyIcon sx={{ fontSize: "0.75rem !important" }} />}
+      label={cfg.label}
+      color={cfg.color}
+      size="small"
+      onClick={canSwitch ? (e) => setAnchor(e.currentTarget) : undefined}
+      sx={{
+        height: 20,
+        fontSize: "0.65rem",
+        "& .MuiChip-label": { px: 0.8 },
+        cursor: canSwitch ? "pointer" : "default",
+      }}
+    />
+  );
+
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
-      <Chip
-        icon={<SmartToyIcon sx={{ fontSize: "0.75rem !important" }} />}
-        label={cfg.label}
-        color={cfg.color}
-        size="small"
-        onClick={canSwitch ? (e) => setAnchor(e.currentTarget) : undefined}
-        sx={{
-          height: 20,
-          fontSize: "0.65rem",
-          "& .MuiChip-label": { px: 0.8 },
-          cursor: canSwitch ? "pointer" : "default",
-        }}
-      />
+      {status === "error" && error ? (
+        <Tooltip
+          title={
+            <Box sx={{ maxWidth: 320 }}>
+              <Box sx={{ fontWeight: 600, mb: 0.4 }}>Failed to load model</Box>
+              <Box sx={{ fontSize: "0.72rem", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{error}</Box>
+            </Box>
+          }
+          arrow
+          placement="bottom-end"
+        >
+          {chip}
+        </Tooltip>
+      ) : chip}
       {status === "loading" && onCancelLoad && (
         <Tooltip title="Cancel loading">
           <IconButton onClick={onCancelLoad} size="small" sx={{ p: 0.2, color: "text.secondary" }}>
@@ -55,7 +72,7 @@ export default function LLMStatusBar({ status, modelId, onSwitchModel, onCancelL
           </IconButton>
         </Tooltip>
       )}
-      {status === "cancelled" && onRetryLoad && (
+      {(status === "cancelled" || status === "error") && onRetryLoad && (
         <Tooltip title="Retry loading">
           <IconButton onClick={onRetryLoad} size="small" sx={{ p: 0.2, color: "text.secondary" }}>
             <RefreshIcon sx={{ fontSize: "0.9rem" }} />

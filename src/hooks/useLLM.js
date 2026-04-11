@@ -286,6 +286,7 @@ export function useLLM() {
   const [status, setStatus] = useState("uninitialized");
   const [progress, setProgress] = useState(0);
   const [modelId, setModelId] = useState(getInitialModelId);
+  const [error, setError] = useState(null);
   const engineRef = useRef(null);
   const historyRef = useRef([]);
   const rosterRef = useRef([]);
@@ -312,6 +313,7 @@ export function useLLM() {
       setStatus("loading");
       statusRef.current = "loading";
       setProgress(0);
+      setError(null);
       try {
         await engineRef.current.reload(id, { temperature: 0.7, top_p: 0.9 });
         if (myToken !== loadTokenRef.current) {
@@ -326,6 +328,7 @@ export function useLLM() {
       } catch (err) {
         if (myToken !== loadTokenRef.current) return;
         console.error("web-llm engine init failed:", err);
+        setError(err?.message || String(err) || "Unknown error");
         setStatus("error");
         statusRef.current = "error";
       }
@@ -583,5 +586,5 @@ export function useLLM() {
     entryBatchesRef.current = entryBatches;
   }, []);
 
-  return { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
+  return { status, progress, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
 }
