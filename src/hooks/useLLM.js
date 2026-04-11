@@ -291,25 +291,40 @@ export function useLLM() {
   useEffect(() => {
     const engine = new webllm.MLCEngine();
     engineRef.current = engine;
+    let disposed = false;
 
     engine.setInitProgressCallback((report) => {
+      if (disposed) return;
       setProgress(report.progress ?? 0);
     });
 
     setStatus("loading");
     statusRef.current = "loading";
 
-    engine
+    const reloadPromise = engine
       .reload(modelId, { temperature: 0.7, top_p: 0.9 })
       .then(() => {
+        if (disposed) return;
         setStatus("ready");
         statusRef.current = "ready";
       })
       .catch((err) => {
+        if (disposed) return;
         console.error("web-llm engine init failed:", err);
         setStatus("error");
         statusRef.current = "error";
       });
+
+    return () => {
+      disposed = true;
+      // Wait for reload to finish before unloading — unloading mid-reload can
+      // leave WebGPU resources pinned. Errors are swallowed because the engine
+      // may already be gone.
+      reloadPromise.finally(() => {
+        engine.unload?.().catch(() => {});
+      });
+      if (engineRef.current === engine) engineRef.current = null;
+    };
   }, []);
 
   const generate = useCallback(async (userMessage, callbacks) => {
