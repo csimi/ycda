@@ -14,6 +14,8 @@ export default function StorySetup({
   llmProgress,
   llmModelId,
   onSwitchModel,
+  onCancelLoad,
+  onRetryLoad,
   pregenerationEnabled,
   onTogglePregeneration,
   isMobile,
@@ -45,6 +47,8 @@ export default function StorySetup({
         llmProgress={llmProgress}
         llmModelId={llmModelId}
         onSwitchModel={onSwitchModel}
+        onCancelLoad={onCancelLoad}
+        onRetryLoad={onRetryLoad}
         pregenerationEnabled={pregenerationEnabled}
         onTogglePregeneration={onTogglePregeneration}
         isMobile={isMobile}

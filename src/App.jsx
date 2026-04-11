@@ -67,7 +67,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
+  const { status, progress, modelId, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -307,6 +307,8 @@ function App() {
           llmProgress={progress}
           llmModelId={modelId}
           onSwitchModel={switchModel}
+          onCancelLoad={cancelLoad}
+          onRetryLoad={retryLoad}
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
           uploadedStories={uploadedStories}
@@ -342,6 +344,8 @@ function App() {
           llmProgress={progress}
           llmModelId={modelId}
           onSwitchModel={switchModel}
+          onCancelLoad={cancelLoad}
+          onRetryLoad={retryLoad}
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
           isMobile={isMobile}
@@ -368,6 +372,8 @@ function App() {
           llmProgress={progress}
           llmModelId={modelId}
           onSwitchModel={switchModel}
+          onCancelLoad={cancelLoad}
+          onRetryLoad={retryLoad}
           storyTitle={activeStory.title}
           onHome={() => setActiveStory(null)}
           pregenerationEnabled={pregenerationEnabled}
