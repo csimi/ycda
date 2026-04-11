@@ -6,6 +6,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  Tooltip,
 } from "@mui/material";
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
@@ -14,6 +15,7 @@ import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ReplayIcon from "@mui/icons-material/Replay";
 import StopIcon from "@mui/icons-material/Stop";
 import BackspaceIcon from "@mui/icons-material/Backspace";
+import MovieIcon from "@mui/icons-material/Movie";
 
 const actionTypes = [
   {
@@ -45,10 +47,11 @@ const actionTypes = [
   },
 ];
 
-export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, onCancel, canRerun, canRemoveLast, isDark, disabled = false, isGenerating = false }) {
+export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, onCancel, onScenario, canRerun, canRemoveLast, scenarios = [], isDark, disabled = false, isGenerating = false }) {
   const [mode, setMode] = useState("say");
   const [text, setText] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [scenariosOpen, setScenariosOpen] = useState(false);
 
   useEffect(() => {
     if (!isGenerating) setCancelling(false);
@@ -216,7 +219,92 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, 
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
+
+        {scenarios.length > 0 && (
+          <>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setScenariosOpen((v) => !v)}
+              startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
+              sx={{
+                textTransform: "none",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                borderRadius: "8px",
+                px: 1.2,
+                py: 0.4,
+                whiteSpace: "nowrap",
+                borderColor: scenariosOpen
+                  ? "rgba(168,85,247,0.5)"
+                  : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+                color: scenariosOpen
+                  ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
+                  : "text.secondary",
+                bgcolor: scenariosOpen
+                  ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
+                  : "transparent",
+                "&:hover": {
+                  borderColor: "rgba(168,85,247,0.5)",
+                  bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
+                },
+              }}
+            >
+              Scenarios
+            </Button>
+          </>
+        )}
       </Box>
+
+      {scenariosOpen && scenarios.length > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            overflowX: "auto",
+            pb: 0.5,
+            "&::-webkit-scrollbar": { height: 4 },
+            "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+            "&::-webkit-scrollbar-thumb": {
+              bgcolor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)",
+              borderRadius: 4,
+            },
+          }}
+        >
+          {scenarios.map((scenario) => (
+            <Tooltip key={scenario.id} title={scenario.prompt} placement="top" arrow>
+              <Button
+                size="small"
+                disabled={disabled}
+                onClick={() => { onScenario?.(scenario); setScenariosOpen(false); }}
+                sx={{
+                  flexShrink: 0,
+                  textTransform: "none",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  borderRadius: "10px",
+                  px: 1.4,
+                  py: 0.5,
+                  gap: 0.6,
+                  border: isDark ? "1px solid rgba(168,85,247,0.25)" : "1px solid rgba(168,85,247,0.2)",
+                  color: isDark ? "rgba(216,180,254,0.85)" : "rgba(107,33,168,0.85)",
+                  bgcolor: isDark ? "rgba(168,85,247,0.07)" : "rgba(168,85,247,0.05)",
+                  whiteSpace: "nowrap",
+                  "&:hover": {
+                    bgcolor: isDark ? "rgba(168,85,247,0.16)" : "rgba(168,85,247,0.1)",
+                    borderColor: isDark ? "rgba(168,85,247,0.5)" : "rgba(168,85,247,0.4)",
+                  },
+                  "&.Mui-disabled": { opacity: 0.35 },
+                }}
+              >
+                <span style={{ fontSize: "0.85rem", lineHeight: 1 }}>{scenario.icon}</span>
+                {scenario.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </Box>
+      )}
 
       <Box sx={{ display: "flex", gap: 1, alignItems: "flex-end" }}>
         <TextField

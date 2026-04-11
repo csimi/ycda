@@ -5,6 +5,7 @@ import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import CompressIcon from "@mui/icons-material/Compress";
+import MovieIcon from "@mui/icons-material/Movie";
 
 const typeConfig = {
   story: {
@@ -85,6 +86,23 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
     return entry.text
       ? <Tooltip title={entry.text} placement="top" arrow><span>{inner}</span></Tooltip>
       : inner;
+  }
+
+  if (entry.type === "story" && entry.source === "scenario") {
+    const color = isDark ? "rgba(168,85,247,0.6)" : "rgba(126,34,206,0.55)";
+    const lineColor = isDark ? "rgba(168,85,247,0.15)" : "rgba(126,34,206,0.12)";
+    return (
+      <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color }}>
+          <MovieIcon sx={{ fontSize: 11 }} />
+          <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+            {entry.text}
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+      </Box>
+    );
   }
 
   if (entry.type === "story" && entry.source === "continue") {

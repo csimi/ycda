@@ -347,8 +347,13 @@ function App() {
               onRerun={handleRerun}
               onRemoveLast={handleRemoveLast}
               onCancel={cancel}
+              onScenario={(scenario) => {
+                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "scenario", text: scenario.label }]);
+                callGenerate(scenario.prompt);
+              }}
               canRerun={!!lastRun && isLLMReady}
               canRemoveLast={entries.length > 0}
+              scenarios={activeStory?.scenarios ?? []}
               isDark={isDark}
               disabled={isGenerating || status === "loading" || status === "initializing"}
               isGenerating={isGenerating}

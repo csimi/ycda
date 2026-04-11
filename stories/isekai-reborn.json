@@ -41,6 +41,68 @@
       "note": "Sir Davan, appointed as Kenji's escort and combat instructor. Gruff and skeptical that a scrawny otherworlder can be the prophesied Hero, but duty-bound to protect him."
     }
   ],
+  "scenarios": [
+    {
+      "id": "s1",
+      "label": "Echo Mastery Triggers",
+      "icon": "✨",
+      "prompt": "Kenji's unique skill Echo Mastery suddenly activates. He witnesses someone nearby use a remarkable ability — a spell, a combat technique, or something stranger — and the skill copies it. Describe the moment of activation, what he copied, and the surprise or alarm of anyone watching."
+    },
+    {
+      "id": "s2",
+      "label": "Status Window Anomaly",
+      "icon": "🪟",
+      "prompt": "Kenji's status window flickers and displays something that shouldn't be there — a hidden stat, a locked skill, a cryptic warning, or a number that makes no sense. Describe what he sees and his attempt to make sense of it, possibly consulting Seraphina."
+    },
+    {
+      "id": "s3",
+      "label": "Guild Registration",
+      "icon": "📜",
+      "prompt": "Kenji is brought to the Adventurers' Guild to officially register as a Hero. The guild master and other adventurers react to seeing the prophesied Hero — some with awe, others with open skepticism. Include the registration process, a stats evaluation, and a memorable encounter with another adventurer."
+    },
+    {
+      "id": "s4",
+      "label": "Demon Lord's Herald Arrives",
+      "icon": "🖤",
+      "prompt": "A dark envoy from the Demon Lord arrives at the palace gates under a black flag of parley. The herald delivers an ultimatum or a taunting message directly addressed to the Hero by name, implying the Demon Lord already knows about Kenji's summoning. Describe the confrontation and King Aldric's strained response."
+    },
+    {
+      "id": "s5",
+      "label": "Night Ambush",
+      "icon": "🗡️",
+      "prompt": "In the dead of night, assassins slip into the palace and strike at Kenji's chambers. They are professionals — quiet, coordinated, and well-informed about his routine. Describe the attack, how Kenji (and anyone nearby) responds, and who might be behind it."
+    },
+    {
+      "id": "s6",
+      "label": "First Dungeon",
+      "icon": "🏚️",
+      "prompt": "Sir Davan leads Kenji into a nearby dungeon as a real combat trial. The dungeon has its own atmosphere and a threat Kenji isn't ready for. Describe the descent, the first genuine monster encounter, and a moment where Kenji's otherworld instincts either help or get him into trouble."
+    },
+    {
+      "id": "s7",
+      "label": "Brutal Training Session",
+      "icon": "⚔️",
+      "prompt": "Sir Davan puts Kenji through a gruelling training session in the palace yard — footwork, weapon forms, endurance drills. Kenji struggles badly, earning the silent judgment of watching knights. Then something unexpected happens that shifts Davan's opinion, even slightly."
+    },
+    {
+      "id": "s8",
+      "label": "A Second Hero?",
+      "icon": "❓",
+      "prompt": "Rumour reaches the palace that the summoning ritual may have pulled in more than one soul from the other world. Another person, disoriented and very different from Kenji, is reportedly found somewhere in the kingdom. Describe how word reaches Kenji, what little is known, and the political tension it creates at court."
+    },
+    {
+      "id": "s9",
+      "label": "Seraphina's Confession",
+      "icon": "👸",
+      "prompt": "Seraphina pulls Kenji aside in private and tells him something about the Hero Summoning ritual that she deliberately withheld — something that would have changed his reaction on the first day. It is not a betrayal, but it is a burden she has been carrying. Describe the confession and Kenji's response."
+    },
+    {
+      "id": "s10",
+      "label": "Hero's Welcome Feast",
+      "icon": "🍖",
+      "prompt": "The king holds a formal banquet in Kenji's honour. The hall is full of nobles, knights, and dignitaries — some genuinely celebratory, others watching him like an investment. Kenji must navigate unfamiliar customs, food, and politics. Include at least one awkward moment and one genuine human connection."
+    }
+  ],
   "entries": [
     {
       "id": 1,

@@ -56,6 +56,11 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
   "title": "Story Title",
   "description": "One-paragraph blurb shown on selection card.",
 
+  // Optional: predefined scenario cards shown in the InputBar tray. Each fires a generation prompt.
+  "scenarios": [
+    { "id": "s1", "label": "Short label", "icon": "⚔️", "prompt": "Full prompt sent to the LLM." }
+  ],
+
   // Optional: if present, a setup form is shown before the game starts.
   "setup": [
     { "field": "name",       "label": "Your character's name" },

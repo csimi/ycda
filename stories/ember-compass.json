@@ -2,6 +2,16 @@
   "id": "ember-compass",
   "title": "The Ember Compass",
   "description": "A lost artifact. An ancient forest. Three adventurers who may not survive the night. Follow the trail of a legendary compass said to guide its bearer through any darkness — but darkness has teeth.",
+  "scenarios": [
+    { "id": "s1", "label": "Attack it", "icon": "⚔️", "prompt": "Draw your weapon and attack the Hollow One before it can act." },
+    { "id": "s2", "label": "Shadowstep", "icon": "🌑", "prompt": "Use your shadowstepping ability to vanish and flank the creature." },
+    { "id": "s3", "label": "Talk to it", "icon": "🗣️", "prompt": "Hold your ground and demand to know what the Hollow One is and what it wants." },
+    { "id": "s4", "label": "Ask Sylvara", "icon": "🔮", "prompt": "Ask Sylvara what she can sense about the creature's nature — magic, undead, something else?" },
+    { "id": "s5", "label": "Scout ahead", "icon": "🌲", "prompt": "Break away from the group and push deeper into the forest, following the trail toward the Ember Compass." },
+    { "id": "s6", "label": "Search the area", "icon": "🔦", "prompt": "Scan the surrounding undergrowth and treeline for clues — tracks, markings, anything that might point toward the compass." },
+    { "id": "s7", "label": "Fall back", "icon": "🏃", "prompt": "Signal the party to retreat toward the forest edge and regroup." },
+    { "id": "s8", "label": "Find Mira", "icon": "🍺", "prompt": "Head back to the village and press Mira for everything she knows about the Hollow One and the compass." }
+  ],
   "setup": [
     { "field": "name", "label": "Your character's name" },
     { "field": "gender", "label": "Your character's gender" },
