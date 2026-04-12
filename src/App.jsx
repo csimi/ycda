@@ -55,6 +55,7 @@ function formatUserAction(inputMode, text, characterName) {
 function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
   const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
+  const [exploreMode, setExploreMode] = useState(() => localStorage.getItem("explore") === "true");
   const [fontSerif, setFontSerif] = useState(() => localStorage.getItem("fontSerif") !== "false");
   const [fontScale, setFontScale] = useState(() => {
     const v = parseFloat(localStorage.getItem("fontScale"));
@@ -90,6 +91,12 @@ function App() {
     const next = !pregenerationEnabled;
     setPregenerationEnabled(next);
     localStorage.setItem("pregen", String(next));
+  };
+
+  const toggleExploreMode = () => {
+    const next = !exploreMode;
+    setExploreMode(next);
+    localStorage.setItem("explore", String(next));
   };
 
   const toggleFontSerif = () => {
@@ -214,9 +221,14 @@ function App() {
     }
   };
 
+  const wrapWithExplorePrompt = (msg) => {
+    if (!exploreMode) return msg;
+    return `${msg}\n\n[EXPLORE MODE] Stay in the current moment. Do not skip time, change location, or introduce new conflicts. Focus on deepening the current interaction: character dialogue, reactions, atmosphere, and sensory detail. Characters should still speak and act naturally.`;
+  };
+
   const callGenerate = (userMessage) => {
     if (!isLLMReady) return;
-    generate(userMessage, {
+    generate(wrapWithExplorePrompt(userMessage), {
       onPlaceholder: (id) => setEntries((prev) => [...prev, { id, type: "story", text: "…" }]),
       onChunk: (id, partial) => setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, text: partial } : e))),
       onComplete: (id, parsedEntries, newChars) => {
@@ -424,8 +436,12 @@ function App() {
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {
-                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "continue", text: "Continue the story." }]);
-                callGenerate("Continue the scene with a new development — an action, revelation, or NPC reaction. Do not repeat or summarize recent beats.");
+                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "continue", text: exploreMode ? "Explore the scene." : "Continue the story." }]);
+                callGenerate(
+                  exploreMode
+                    ? "Elaborate on the current scene — add character dialogue, reactions, atmosphere, or environmental details. Do not advance the plot or introduce new events."
+                    : "Continue the scene with a new development — an action, revelation, or NPC reaction. Do not repeat or summarize recent beats."
+                );
               }}
               onRerun={handleRerun}
               onRemoveLast={handleRemoveLast}
@@ -440,6 +456,9 @@ function App() {
               isDark={isDark}
               disabled={status !== "ready"}
               isGenerating={isGenerating}
+              exploreMode={exploreMode}
+              onToggleExploreMode={toggleExploreMode}
+              isMobile={isMobile}
             />
           </Box>
         </Box>

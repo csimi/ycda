@@ -176,7 +176,10 @@ function extractNameAndText(rawName, afterBracket) {
 function parseNarratorResponse(text, roster = []) {
   const entries = [];
   const newChars = [];
-  const lines = text.split("\n");
+  // Split on newlines, then split again on tag boundaries so that multiple
+  // tags on the same line (e.g. "[SAY:X] hi [STORY] text") are each parsed.
+  const TAG_SPLIT = /(?=\[(?:STORY|SAY:|DO:|NEW_CHAR:))/i;
+  const lines = text.split("\n").flatMap((l) => l.split(TAG_SPLIT));
 
   for (const raw of lines) {
     const line = raw.trim();

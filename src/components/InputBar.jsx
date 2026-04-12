@@ -16,6 +16,7 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import StopIcon from "@mui/icons-material/Stop";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import MovieIcon from "@mui/icons-material/Movie";
+import ExploreIcon from "@mui/icons-material/Explore";
 
 const actionTypes = [
   {
@@ -47,7 +48,7 @@ const actionTypes = [
   },
 ];
 
-export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, onCancel, onScenario, canRerun, canRemoveLast, scenarios = [], isDark, disabled = false, isGenerating = false }) {
+export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, onCancel, onScenario, canRerun, canRemoveLast, scenarios = [], isDark, disabled = false, isGenerating = false, exploreMode = false, onToggleExploreMode, isMobile = false }) {
   const [mode, setMode] = useState("say");
   const [text, setText] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -96,6 +97,7 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, 
         gap: 1,
       }}
     >
+      {/* Row 1: Continue, Re-run, Remove */}
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", columnGap: 1.5, rowGap: 1 }}>
         <Button
           variant="outlined"
@@ -181,79 +183,232 @@ export default function InputBar({ onSubmit, onContinue, onRerun, onRemoveLast, 
           Remove
         </Button>
 
-        <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, whiteSpace: "nowrap" }}>
-          I will:
-        </Typography>
-        <ToggleButtonGroup
-          value={mode}
-          exclusive
-          onChange={(_, val) => val && setMode(val)}
-          size="small"
-          sx={{ gap: 0.5 }}
-        >
-          {actionTypes.map((type) => (
-            <ToggleButton
-              key={type.value}
-              value={type.value}
-              sx={{
-                px: 1.5,
-                py: 0.4,
-                borderRadius: "8px !important",
-                border: `1px solid ${toggleBorder} !important`,
-                color: "text.secondary",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                gap: 0.5,
-                textTransform: "none",
-                transition: "all 0.15s ease",
-                "&.Mui-selected": {
-                  color: type.color,
-                  bgcolor: type.activeBg,
-                  borderColor: `${type.activeBorder} !important`,
-                },
-                "&:hover": { bgcolor: toggleHover },
-              }}
+        {/* On desktop: I will + toggles + Explore + Scenarios all on the same row */}
+        {!isMobile && (
+          <>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, whiteSpace: "nowrap" }}>
+              I will:
+            </Typography>
+            <ToggleButtonGroup
+              value={mode}
+              exclusive
+              onChange={(_, val) => val && setMode(val)}
+              size="small"
+              sx={{ gap: 0.5 }}
             >
-              {type.icon}
-              {type.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+              {actionTypes.map((type) => (
+                <ToggleButton
+                  key={type.value}
+                  value={type.value}
+                  sx={{
+                    px: 1.5,
+                    py: 0.4,
+                    borderRadius: "8px !important",
+                    border: `1px solid ${toggleBorder} !important`,
+                    color: "text.secondary",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    gap: 0.5,
+                    textTransform: "none",
+                    transition: "all 0.15s ease",
+                    "&.Mui-selected": {
+                      color: type.color,
+                      bgcolor: type.activeBg,
+                      borderColor: `${type.activeBorder} !important`,
+                    },
+                    "&:hover": { bgcolor: toggleHover },
+                  }}
+                >
+                  {type.icon}
+                  {type.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
 
-        {scenarios.length > 0 && (
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setScenariosOpen((v) => !v)}
-            startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
-            sx={{
-              ml: "auto",
-              textTransform: "none",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              borderRadius: "8px",
-              px: 1.2,
-              py: 0.4,
-              whiteSpace: "nowrap",
-                borderColor: scenariosOpen
-                ? "rgba(168,85,247,0.5)"
-                : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
-              color: scenariosOpen
-                ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
-                : "text.secondary",
-              bgcolor: scenariosOpen
-                ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
-                : "transparent",
-              "&:hover": {
-                borderColor: "rgba(168,85,247,0.5)",
-                bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
-              },
-            }}
-          >
-            Scenarios
-          </Button>
+            <Tooltip title={exploreMode ? "Explore mode ON — the story stays in the current scene" : "Explore mode — stay in the current scene without advancing the plot"} placement="top" arrow>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={onToggleExploreMode}
+                startIcon={<ExploreIcon sx={{ fontSize: "15px !important" }} />}
+                sx={{
+                  ml: "auto",
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  px: 1.2,
+                  py: 0.4,
+                  whiteSpace: "nowrap",
+                  borderColor: exploreMode
+                    ? "rgba(234,179,8,0.5)"
+                    : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+                  color: exploreMode
+                    ? (isDark ? "rgba(250,204,21,0.9)" : "rgba(161,98,7,0.85)")
+                    : "text.secondary",
+                  bgcolor: exploreMode
+                    ? (isDark ? "rgba(234,179,8,0.1)" : "rgba(234,179,8,0.06)")
+                    : "transparent",
+                  "&:hover": {
+                    borderColor: "rgba(234,179,8,0.5)",
+                    bgcolor: isDark ? "rgba(234,179,8,0.1)" : "rgba(234,179,8,0.06)",
+                  },
+                }}
+              >
+                Explore
+              </Button>
+            </Tooltip>
+
+            {scenarios.length > 0 && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setScenariosOpen((v) => !v)}
+                startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
+                sx={{
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  px: 1.2,
+                  py: 0.4,
+                  whiteSpace: "nowrap",
+                  borderColor: scenariosOpen
+                    ? "rgba(168,85,247,0.5)"
+                    : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+                  color: scenariosOpen
+                    ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
+                    : "text.secondary",
+                  bgcolor: scenariosOpen
+                    ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
+                    : "transparent",
+                  "&:hover": {
+                    borderColor: "rgba(168,85,247,0.5)",
+                    bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
+                  },
+                }}
+              >
+                Scenarios
+              </Button>
+            )}
+          </>
         )}
       </Box>
+
+      {/* Row 2 (mobile only): I will + Say/Do/Story toggles */}
+      {isMobile && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, whiteSpace: "nowrap" }}>
+            I will:
+          </Typography>
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={(_, val) => val && setMode(val)}
+            size="small"
+            sx={{ gap: 0.5 }}
+          >
+            {actionTypes.map((type) => (
+              <ToggleButton
+                key={type.value}
+                value={type.value}
+                sx={{
+                  px: 1.5,
+                  py: 0.4,
+                  borderRadius: "8px !important",
+                  border: `1px solid ${toggleBorder} !important`,
+                  color: "text.secondary",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  gap: 0.5,
+                  textTransform: "none",
+                  transition: "all 0.15s ease",
+                  "&.Mui-selected": {
+                    color: type.color,
+                    bgcolor: type.activeBg,
+                    borderColor: `${type.activeBorder} !important`,
+                  },
+                  "&:hover": { bgcolor: toggleHover },
+                }}
+              >
+                {type.icon}
+                {type.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+      )}
+
+      {/* Row 3 (mobile only): Explore + Scenarios */}
+      {isMobile && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Tooltip title={exploreMode ? "Explore mode ON — the story stays in the current scene" : "Explore mode — stay in the current scene without advancing the plot"} placement="top" arrow>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={onToggleExploreMode}
+              startIcon={<ExploreIcon sx={{ fontSize: "15px !important" }} />}
+              sx={{
+                textTransform: "none",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                borderRadius: "8px",
+                px: 1.2,
+                py: 0.4,
+                whiteSpace: "nowrap",
+                borderColor: exploreMode
+                  ? "rgba(234,179,8,0.5)"
+                  : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+                color: exploreMode
+                  ? (isDark ? "rgba(250,204,21,0.9)" : "rgba(161,98,7,0.85)")
+                  : "text.secondary",
+                bgcolor: exploreMode
+                  ? (isDark ? "rgba(234,179,8,0.1)" : "rgba(234,179,8,0.06)")
+                  : "transparent",
+                "&:hover": {
+                  borderColor: "rgba(234,179,8,0.5)",
+                  bgcolor: isDark ? "rgba(234,179,8,0.1)" : "rgba(234,179,8,0.06)",
+                },
+              }}
+            >
+              Explore
+            </Button>
+          </Tooltip>
+
+          {scenarios.length > 0 && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setScenariosOpen((v) => !v)}
+              startIcon={<MovieIcon sx={{ fontSize: "15px !important" }} />}
+              sx={{
+                textTransform: "none",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                borderRadius: "8px",
+                px: 1.2,
+                py: 0.4,
+                whiteSpace: "nowrap",
+                borderColor: scenariosOpen
+                  ? "rgba(168,85,247,0.5)"
+                  : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"),
+                color: scenariosOpen
+                  ? (isDark ? "rgba(216,180,254,0.9)" : "rgba(126,34,206,0.85)")
+                  : "text.secondary",
+                bgcolor: scenariosOpen
+                  ? (isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)")
+                  : "transparent",
+                "&:hover": {
+                  borderColor: "rgba(168,85,247,0.5)",
+                  bgcolor: isDark ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.06)",
+                },
+              }}
+            >
+              Scenarios
+            </Button>
+          )}
+        </Box>
+      )}
 
       {scenariosOpen && scenarios.length > 0 && (
         <Box

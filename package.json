@@ -2,6 +2,8 @@
   "name": "ycda",
   "version": "1.0.0",
   "private": true,
+  "author": "David Csirmaz",
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "https://github.com/csimi/ycda.git"

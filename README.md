@@ -110,6 +110,7 @@ The file appears on the story selection screen automatically on next dev server 
 | **Remove Last** | Delete the last entry from the feed and LLM history |
 | **Cancel** | Stop the current generation mid-stream |
 | **Say / Do / Story** | Toggle input mode before typing |
+| **Explore** | Toggle explore mode — the AI lingers in the current scene (atmosphere, detail, reactions) instead of advancing the plot |
 | **Save / Load** | Click the save icon (💾) in the header |
 | **Switch model** | Click the model chip in the header |
 | **Narrator briefing (✨)** | Toggle pre-generation of a narrator briefing at story start |

@@ -138,6 +138,7 @@ entries              — story feed array
 lastRun              — { userMessage, aiEntryIds: Set } | null  (for Re-run)
 themeMode            — "light" | "dark", persisted to localStorage key "theme"
 pregenerationEnabled — bool, persisted to localStorage key "pregen"
+exploreMode          — bool, persisted to localStorage key "explore"
 savesDialogOpen      — bool
 savesDialogMode      — "save" | "load"
 ```
@@ -228,6 +229,7 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 - **Remove Last** — removes the last entry from the feed and calls `pruneEntries` to sync LLM history.
 - **Cancel** — sets `cancelledRef` in the hook; generation stops after the current stream drains.
 - **Say / Do / Story** mode toggle — controls how the user's text is formatted before being sent to the LLM and how the entry is displayed.
+- **Explore** toggle — when active, appends an `[EXPLORE MODE — OVERRIDE]` instruction to every prompt telling the LLM to stay in the current moment (atmosphere, detail, character reactions) instead of advancing the plot. The Continue button prompt also changes to a scene-elaboration prompt. Persisted to localStorage key `"explore"`. On mobile, Explore and Scenarios are shown on their own row.
 
 ## AppHeader controls
 
