@@ -6,11 +6,11 @@ A text-based choose-your-own-adventure game powered by an in-browser AI Game Mas
 
 ## Requirements
 
-- A modern browser with **WebGPU support** (Chrome 113+, Edge 113+ on desktop; Chrome 121+ on Android)
+- A modern browser with **WebGPU support** (Chrome 113+, Edge 113+, Safari 18+)
 - A GPU with enough VRAM for your chosen model (see [Models](#models))
 - Node.js 18+
 
-Mobile is supported on a best-effort basis: see [Mobile](#mobile).
+WebGPU is now available on all major platforms — desktop (Chrome, Edge, Safari), Android (Chrome 121+), and iOS/iPadOS (Safari 18+). See [Mobile](#mobile) for device-specific notes.
 
 ## Getting started
 
@@ -48,7 +48,7 @@ The 8B models require ~6 GB of available GPU memory. If generation stalls or the
 
 ## Mobile
 
-On a detected mobile device the app defaults to **Llama 3.2 1B** instead of Gemma 2 9B, and the model picker shows a warning header plus a green/amber/red dot next to each row reflecting how likely it is to run on phones. Realistically, only the 1B is a safe bet on a 1–2 year old Android flagship; 3B and Phi 3.5 Mini are borderline and may OOM on 8 GB devices; everything else is desktop-only. iOS Safari does not yet support WebGPU.
+On a detected mobile device the app defaults to **Llama 3.2 1B** instead of Gemma 2 9B, and the model picker shows a warning header plus a green/amber/red dot next to each row reflecting how likely it is to run on phones. Realistically, only the 1B is a safe bet on a recent flagship (Android or iPhone); 3B and Phi 3.5 Mini are borderline and may OOM on 8 GB devices; everything else is desktop-only. Safari 18+ on iOS/iPadOS supports WebGPU, so iPhones and iPads can run the game natively.
 
 ## Adding stories
 
