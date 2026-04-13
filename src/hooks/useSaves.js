@@ -13,7 +13,7 @@ export function useSaves() {
 
   const saveGame = async ({ storyId, storyTitle, snapshot }) => {
     const lastMeaningful = [...snapshot.entries].reverse()
-      .find((e) => e.source !== "continue" && e.source !== "compact");
+      .find((e) => e.source !== "continue" && e.source !== "compact" && e.source !== "compacting");
     const previewText = (lastMeaningful?.text ?? "").slice(0, 150);
     await idbSaveGame({
       id: crypto.randomUUID(),

@@ -153,7 +153,7 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
 
       {/* Saved games section */}
       {saves?.length > 0 && (
-        <Box sx={{ px: 4, pb: 2, maxWidth: 900, mx: "auto", width: "100%" }}>
+        <Box sx={{ px: 4, pb: 2, maxWidth: 1440, mx: "auto", width: "100%" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
             <BookmarkIcon sx={{ fontSize: 18, color: "primary.main" }} />
             <Typography sx={{ fontWeight: 700, fontSize: "0.9rem" }}>Continue a saved game</Typography>

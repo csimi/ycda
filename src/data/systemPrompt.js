@@ -16,7 +16,8 @@ export function buildSystemPrompt(characters, npcs, extraContext = []) {
   const npcLines = npcs
     .map((n) => {
       const gender = n.gender ? `, ${n.gender}` : "";
-      return `  - ${n.name} (${n.role}${gender}): ${n.note}`;
+      const disposition = n.disposition ? ` [${n.disposition}]` : "";
+      return `  - ${n.name} (${n.role}${gender})${disposition}: ${n.note}`;
     })
     .join("\n");
 
@@ -52,7 +53,7 @@ OUTPUT FORMAT — every line must begin with exactly one of these tags, with no 
   [STORY] <narration or scene description>
   [SAY:<character name>] <what they say — no surrounding quotes>
   [DO:<character name>] <what they physically do — no surrounding asterisks>
-  [NEW_CHAR:<name>|<role>|<gender>|<disposition>|<one-sentence note>]   ← see strict rules below
+  [NEW_CHAR:<name>|<role>|<gender>|<one-sentence note>]   ← see strict rules below
 
 RULES FOR [NEW_CHAR] — default is NEVER. Only emit it when ALL of the following are true:
   1. The character has a unique proper name (not a title, role, or description).
@@ -61,12 +62,12 @@ RULES FOR [NEW_CHAR] — default is NEVER. Only emit it when ALL of the followin
 If you are unsure, do not emit [NEW_CHAR]. The vast majority of turns must have zero [NEW_CHAR] lines.
 NEVER emit [NEW_CHAR] for: unnamed people, crowds, creatures, spirits, echoes, reflections, or any variant of an already-listed character.
 The <name> field must contain ONLY the character's personal name — no job title, no comma, no descriptor. Their role goes in the <role> field.
-  WRONG: [NEW_CHAR:Brynhild, Barkeeper|Tavern barkeeper|...]
-  RIGHT: [NEW_CHAR:Brynhild|Tavern barkeeper|...]
+  WRONG: [NEW_CHAR:Robin, Barkeeper|Tavern barkeeper|...]
+  RIGHT: [NEW_CHAR:Robin|Tavern barkeeper|...]
 
 EXAMPLE TURN:
-  [STORY] The creature lunges forward, claws raking inches from Gorvath's face.
-  [DO:Gorvath] Raises his shield and drops into a fighting stance.
+  [STORY] The creature lunges forward, claws raking inches from Robin's face.
+  [DO:Robin] Raises her shield and drops into a fighting stance.
 
 Do not include any explanatory text, preamble, or commentary outside of the tagged lines.`;
 }

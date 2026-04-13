@@ -1,4 +1,4 @@
-import { Box, Typography, Tooltip } from "@mui/material";
+import { Box, Typography, Tooltip, CircularProgress } from "@mui/material";
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
@@ -68,6 +68,23 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
   const colors = isDark ? cfg.dark : cfg.light;
   const border = typeof cfg.border === "object" ? (isDark ? cfg.border.dark : cfg.border.light) : cfg.border;
 
+  if (entry.type === "story" && entry.source === "compacting") {
+    const color = isDark ? "rgba(251,191,36,0.35)" : "rgba(180,130,20,0.45)";
+    const lineColor = isDark ? "rgba(251,191,36,0.12)" : "rgba(180,130,20,0.15)";
+    return (
+      <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, color }}>
+          <CircularProgress size={9} thickness={5} sx={{ color }} />
+          <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+            compacting context…
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+      </Box>
+    );
+  }
+
   if (entry.type === "story" && entry.source === "compact") {
     const color = isDark ? "rgba(251,191,36,0.35)" : "rgba(180,130,20,0.45)";
     const lineColor = isDark ? "rgba(251,191,36,0.12)" : "rgba(180,130,20,0.15)";
@@ -84,7 +101,7 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
       </Box>
     );
     return entry.text
-      ? <Tooltip title={entry.text} placement="top" arrow><span>{inner}</span></Tooltip>
+      ? <Tooltip title={entry.text} placement="top" arrow slotProps={{ tooltip: { sx: { maxWidth: 360, maxHeight: "40vh", overflowY: "auto", whiteSpace: "pre-wrap" } } }}><span>{inner}</span></Tooltip>
       : inner;
   }
 

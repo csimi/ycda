@@ -6,7 +6,7 @@ Text-based CYOA game powered by an in-browser LLM (web-llm). React + Vite + Mate
 
 - **Vite + React 19** — `npm run dev` to start, `npm run build` to build
 - **Material UI v9** (`@mui/material`, `@emotion/react/styled`, `@mui/icons-material`)
-- **`@mlc-ai/web-llm`** — runs LLMs in-browser via WebGPU. Default model: `Llama-3.1-8B-Instruct-q4f16_1-MLC` (~4.5 GB). Model weights download once and are cached in the browser's Cache API.
+- **`@mlc-ai/web-llm`** — runs LLMs in-browser via WebGPU. Default model: `gemma-2-9b-it-q4f16_1-MLC` (~5.5 GB). Model weights download once and are cached in the browser's Cache API.
 - **`tokenx`** — token estimation for context management
 - **`fastest-levenshtein`** — fuzzy character name matching in SAY/DO tags
 - `optimizeDeps: { exclude: ["@mlc-ai/web-llm"] }` in `vite.config.js` is required — web-llm uses internal dynamic imports that Vite's pre-bundler would mangle.
@@ -106,7 +106,9 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
 |-----------|--------------|-------------|
 | `story`   | *(absent)*   | Serif italic narrator text |
 | `story`   | `"user"`     | Amber dashed "Player note" card |
+| `story`   | `"scenario"` | Purple horizontal divider with scenario label |
 | `story`   | `"continue"` | Slim horizontal divider with `▶ continue` label |
+| `story`   | `"compacting"` | Spinner divider shown while context compaction is running |
 | `story`   | `"compact"`  | Dimmed summary card inserted after context compaction |
 | `say`     | —            | Indigo speech bubble, left-aligned |
 | `do`      | —            | Green action bubble, left-aligned, italic |
@@ -119,7 +121,7 @@ The AI Game Master must respond using only these tagged lines:
 [STORY] narration text
 [SAY:CharName] dialogue without quotes
 [DO:CharName] action without asterisks
-[NEW_CHAR:name|role|gender|disposition|note]
+[NEW_CHAR:name|role|gender|note]
 ```
 
 - `[NEW_CHAR]` — use sparingly, only for named recurring characters. Parser deduplicates against the full roster (party + NPCs) using exact and prefix matching to block variants. Character names in SAY/DO are fuzzy-matched against the roster via Levenshtein distance (tolerance ≤ 2).
@@ -156,7 +158,7 @@ const {
   cancelLoad, retryLoad,
   setSystemPrompt, appendToSystemPrompt, seedInitialEntries,
   setRoster, switchModel,
-  pruneEntries,
+  pruneEntries, undoCompaction,
   pregenerateContext,
   getSnapshot, restoreSnapshot,
 } = useLLM();
@@ -175,7 +177,8 @@ const {
   - `onChunk(id, partial)` — update placeholder text in place
   - `onComplete(id, entries, newChars)` — replace placeholder, apply side-effects
   - `onError(err)` — remove placeholder
-  - `onCompact(summary)` — called when context compaction runs; app adds a `"compact"` entry
+  - `onCompacting()` — called before context compaction starts; app adds a `"compacting"` spinner entry
+  - `onCompact(summary)` — called when context compaction finishes; app replaces the `"compacting"` entry with a `"compact"` entry
 - **`revertLast()`** — pops the last user+assistant pair from history (used by Re-run).
 - **`cancel()`** — signals the current generation to stop after the stream drains.
 - **`cancelLoad()`** — aborts an in-flight model load. Bumps the internal load token, sets status to `"cancelled"`, then calls `engine.unload()`. web-llm wires its `reloadController` AbortSignal into all `fetchWithCache` calls, so `unload()` actually aborts the in-progress weight downloads (not just hides them from the UI).
@@ -183,6 +186,7 @@ const {
 - **`setRoster(names)`** — updates the name list used for fuzzy SAY/DO matching.
 - **`switchModel(newModelId)`** — persists the choice to localStorage and delegates to `loadModel`. Allowed from `"ready"`, `"cancelled"`, and `"error"` states.
 - **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
+- **`undoCompaction()`** — pops the most recent pre-compaction snapshot from `compactStackRef` and restores `historyRef` and `entryBatchesRef`. Returns `true` if a snapshot existed. Supports multiple consecutive undos when compaction has run more than once. Called by "Remove Last" when it hits a compact entry.
 - **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
 - **`getSnapshot()`** → `{ history, entryBatches }` — serializable snapshot for saving.
 - **`restoreSnapshot({ history, entryBatches })`** — restores a saved snapshot.
@@ -190,10 +194,14 @@ const {
 ### Context compaction
 
 When the estimated token count of `historyRef` exceeds 90 % of the model's context window, `compactHistory` is called before the next generation:
-1. A summary of the oldest messages is requested from the LLM (temperature 0.2).
-2. The history is rebuilt as: `[system, synthetic-user-summary, synthetic-assistant-ack, ...recent pairs]`.
-3. `entryBatchesRef` indices are rebased accordingly.
-4. `onCompact(summary)` fires so the app can insert a `"compact"` divider entry.
+1. `onCompacting()` fires so the app can insert a `"compacting"` spinner entry.
+2. The pre-compaction `historyRef` and `entryBatchesRef` are pushed onto `compactStackRef` (a stack supporting multiple undos).
+3. A summary of the oldest messages is requested from the LLM (temperature 0.2).
+4. The history is rebuilt as: `[system, synthetic-user-summary, synthetic-assistant-ack, ...recent pairs]`.
+5. `entryBatchesRef` indices are rebased accordingly.
+6. `onCompact(summary)` fires so the app can replace the `"compacting"` entry with a `"compact"` divider.
+
+"Remove Last" on a compact entry calls `undoCompaction()` to restore the pre-compaction state, allowing further removal of older entries.
 
 ### Available models
 
@@ -202,13 +210,14 @@ Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`). Each entry has a `mob
 | Label | Model ID | Size | Context | Mobile |
 |-------|----------|------|---------|--------|
 | **Llama 3.2 1B** *(default on mobile)* | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | ~0.8 GB | 4096 | ok |
+| Gemma 2 2B | `gemma-2-2b-it-q4f16_1-MLC` | ~1.9 GB | 4096 | maybe |
 | Llama 3.2 3B | `Llama-3.2-3B-Instruct-q4f16_1-MLC` | ~1.8 GB | 4096 | maybe |
 | Phi 3.5 Mini 3.8B | `Phi-3.5-mini-instruct-q4f16_1-MLC` | ~2.2 GB | 4096 | maybe |
-| Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
-| **Hermes 2 Pro 8B** *(default on desktop)* | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
 | Qwen 2.5 7B | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | ~4.2 GB | 4096 | no |
 | Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 | no |
-| Gemma 2 9B | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 | no |
+| Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| Hermes 2 Pro 8B | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| **Gemma 2 9B** *(default on desktop)* | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 | no |
 
 `isMobileDevice()` (UA-based, also exported from `useLLM.js`) is used by `getInitialModelId` to pick the mobile default when no `modelId` is in localStorage.
 

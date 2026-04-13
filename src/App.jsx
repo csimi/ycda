@@ -10,7 +10,7 @@ import AppHeader from "./components/AppHeader";
 import StorySelect from "./components/StorySelect";
 import StorySetup from "./components/StorySetup";
 import { buildSystemPrompt } from "./data/systemPrompt";
-import { useLLM, STREAMING_ENTRY_ID } from "./hooks/useLLM";
+import { useLLM, STREAMING_ENTRY_ID, COMPACTING_ENTRY_ID } from "./hooks/useLLM";
 import { useSaves } from "./hooks/useSaves";
 import SavesDialog from "./components/SavesDialog";
 
@@ -68,7 +68,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
+  const { status, progress, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -140,7 +140,7 @@ function App() {
     }));
 
     // Non-character setup fields become extra context in the system prompt
-    const CHARACTER_FIELDS = new Set(["name", "gender", "class", "avatar", "disposition"]);
+    const CHARACTER_FIELDS = new Set(["name", "gender", "class", "avatar"]);
     const extraContext = (story.setup ?? [])
       .filter((q) => !CHARACTER_FIELDS.has(q.field) && setupAnswers[q.field]?.trim())
       .map((q) => ({ label: q.label, value: setupAnswers[q.field] }));
@@ -211,14 +211,33 @@ function App() {
       const roleLower = (c.role || "").toLowerCase();
       return ABSTRACT_ROLE_PREFIXES.some((p) => roleLower.startsWith(p));
     };
-    const truly_new = newChars.filter((c) => !isVariant(c.name) && !isAbstractChar(c));
-    if (truly_new.length) {
-      setNpcs((prev) => {
-        const updated = [...prev, ...truly_new];
-        setRoster([...characters.map((c) => c.name), ...updated.map((n) => n.name)]);
-        return updated;
-      });
-    }
+    const nonAbstract = newChars.filter((c) => !isAbstractChar(c));
+    if (!nonAbstract.length) return;
+
+    const updates = nonAbstract.filter((c) => isVariant(c.name));
+    const truly_new = nonAbstract.filter((c) => !isVariant(c.name));
+
+    setNpcs((prev) => {
+      let updated = prev;
+      // Upgrade existing NPC cards with new info
+      if (updates.length) {
+        updated = updated.map((npc) => {
+          const match = updates.find((u) => u.name.toLowerCase() === npc.name.toLowerCase());
+          if (!match) return npc;
+          return {
+            ...npc,
+            role: match.role || npc.role,
+            gender: match.gender || npc.gender,
+            note: match.note || npc.note,
+          };
+        });
+      }
+      if (truly_new.length) {
+        updated = [...updated, ...truly_new];
+      }
+      setRoster([...characters.map((c) => c.name), ...updated.map((n) => n.name)]);
+      return updated;
+    });
   };
 
   const wrapWithExplorePrompt = (msg) => {
@@ -237,7 +256,11 @@ function App() {
         mergeNewChars(newChars);
       },
       onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
-      onCompact: (summary) => setEntries((prev) => [...prev, { id: Date.now() + Math.random(), type: "story", source: "compact", text: summary }]),
+      onCompacting: () => setEntries((prev) => [...prev, { id: COMPACTING_ENTRY_ID, type: "story", source: "compacting" }]),
+      onCompact: (summary) => setEntries((prev) => {
+        const filtered = prev.filter((e) => e.id !== COMPACTING_ENTRY_ID);
+        return summary ? [...filtered, { id: Date.now() + Math.random(), type: "story", source: "compact", text: summary }] : filtered;
+      }),
     });
   };
 
@@ -287,6 +310,10 @@ function App() {
     setEntries((prev) => {
       if (!prev.length) return prev;
       const last = prev[prev.length - 1];
+      if (last.source === "compact") {
+        undoCompaction();
+        return prev.slice(0, -1);
+      }
       pruneEntries([last.id]);
       return prev.slice(0, -1);
     });

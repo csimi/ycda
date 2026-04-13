@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Box, Chip, IconButton, Tooltip, Menu, MenuItem, ListItemText, ListItemIcon, Typography, Divider } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import CheckIcon from "@mui/icons-material/Check";
@@ -99,8 +99,9 @@ export default function LLMStatusBar({ status, error, modelId, onSwitchModel, on
         {AVAILABLE_MODELS.map((m) => {
           const badge = MOBILE_BADGE[m.mobile];
           return (
+            <React.Fragment key={m.id}>
+            {m.separator && <Divider sx={{ my: 0.3 }} />}
             <MenuItem
-              key={m.id}
               selected={m.id === modelId}
               onClick={() => { onSwitchModel(m.id); setAnchor(null); }}
               dense
@@ -109,7 +110,14 @@ export default function LLMStatusBar({ status, error, modelId, onSwitchModel, on
                 {m.id === modelId && <CheckIcon sx={{ fontSize: "0.9rem" }} />}
               </ListItemIcon>
               <ListItemText
-                primary={m.label}
+                primary={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                    {m.label}
+                    {m.recommended && (
+                      <Chip label="recommended" size="small" color="info" variant="outlined" sx={{ height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.6 } }} />
+                    )}
+                  </Box>
+                }
                 secondary={m.size}
                 primaryTypographyProps={{ fontSize: "0.82rem" }}
                 secondaryTypographyProps={{ fontSize: "0.7rem" }}
@@ -120,6 +128,7 @@ export default function LLMStatusBar({ status, error, modelId, onSwitchModel, on
                 </Tooltip>
               )}
             </MenuItem>
+            </React.Fragment>
           );
         })}
       </Menu>

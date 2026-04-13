@@ -3,7 +3,7 @@ import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
 import { distance } from "fastest-levenshtein";
 
-const DEFAULT_MODEL_ID = "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC";
+const DEFAULT_MODEL_ID = "gemma-2-9b-it-q4f16_1-MLC";
 const MOBILE_DEFAULT_MODEL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 const MODEL_STORAGE_KEY = "modelId";
 
@@ -28,6 +28,12 @@ const MSG_OVERHEAD = 4;
 
 function estimateHistoryTokens(messages) {
   return messages.reduce((sum, m) => sum + estimateTokenCount(m.content ?? "") + MSG_OVERHEAD, 0);
+}
+
+function needsCompaction(history, contextWindow) {
+  const totalTokens = estimateHistoryTokens(history);
+  const availableBudget = contextWindow - GENERATION_BUDGET;
+  return totalTokens > availableBudget * COMPACTION_RATIO;
 }
 
 async function compactHistory(history, engine, contextWindow) {
@@ -107,13 +113,14 @@ async function compactHistory(history, engine, contextWindow) {
 //         "no" — almost certainly won't run on phones
 export const AVAILABLE_MODELS = [
   { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 1B",      size: "~0.8 GB", contextWindow: 4096, mobile: "ok"    },
+  { id: "gemma-2-2b-it-q4f16_1-MLC",            label: "Gemma 2 2B",        size: "~1.9 GB", contextWindow: 4096, mobile: "maybe" },
   { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 3B",      size: "~1.8 GB", contextWindow: 4096, mobile: "maybe" },
   { id: "Phi-3.5-mini-instruct-q4f16_1-MLC",    label: "Phi 3.5 Mini 3.8B", size: "~2.2 GB", contextWindow: 4096, mobile: "maybe" },
+  { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",      label: "Qwen 2.5 7B",       size: "~4.2 GB", contextWindow: 4096, mobile: "no", separator: true },
+  { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096, mobile: "no"    },
   { id: "Llama-3.1-8B-Instruct-q4f16_1-MLC",    label: "Llama 3.1 8B",      size: "~4.5 GB", contextWindow: 4096, mobile: "no"    },
   { id: "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",  label: "Hermes 2 Pro 8B",   size: "~4.5 GB", contextWindow: 4096, mobile: "no"    },
-  { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",      label: "Qwen 2.5 7B",       size: "~4.2 GB", contextWindow: 4096, mobile: "no"    },
-  { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096, mobile: "no"    },
-  { id: "gemma-2-9b-it-q4f16_1-MLC",            label: "Gemma 2 9B",        size: "~5.5 GB", contextWindow: 4096, mobile: "no"    },
+  { id: "gemma-2-9b-it-q4f16_1-MLC",            label: "Gemma 2 9B",        size: "~5.5 GB", contextWindow: 4096, mobile: "no", recommended: true },
 ];
 
 function getInitialModelId() {
@@ -123,6 +130,7 @@ function getInitialModelId() {
 }
 
 export const STREAMING_ENTRY_ID = "__streaming__";
+export const COMPACTING_ENTRY_ID = "__compacting__";
 
 const REFUSAL_RE = [
   /\bI (can't|cannot|won't|will not|am unable to|must decline|refuse to)\b/i,
@@ -137,10 +145,13 @@ function isRefusal(text) {
   if (!/^\[(STORY|SAY:|DO:|NEW_CHAR:)/m.test(text)) return true;
   // Any single line over 600 chars → model is rambling
   if (text.split("\n").some((l) => l.length > 600)) return true;
-  return REFUSAL_RE.some((re) => re.test(text));
+  // Only check refusal phrases on lines that are NOT inside a valid tag,
+  // so in-story dialogue like "I'm sorry, I cannot allow that" is not flagged.
+  const untaggedLines = text.split("\n")
+    .filter((l) => l.trim() && !/^\[(STORY|SAY:|DO:|NEW_CHAR:)/i.test(l.trim()));
+  return untaggedLines.some((line) => REFUSAL_RE.some((re) => re.test(line)));
 }
 
-const VALID_DISPOSITIONS = new Set(["friendly", "neutral", "hostile"]);
 
 function closestRosterName(name, roster) {
   if (!roster.length) return name;
@@ -223,12 +234,12 @@ function parseNarratorResponse(text, roster = []) {
       }
     }
 
-    // [NEW_CHAR:name|role|gender|disposition|note]
+    // [NEW_CHAR:name|role|gender|note]
     const newCharMatch = line.match(/^\[NEW_CHAR:([^\]]+)\]/i);
     if (newCharMatch) {
       const parts = newCharMatch[1].split("|").map((s) => s.trim());
-      const [rawName, role, gender, disposition, ...noteParts] = parts;
-      // Strip any role/job suffix the model appended to the name (e.g. "Brynhild, Barkeeper")
+      const [rawName, role, gender, ...noteParts] = parts;
+      // Strip any role/job suffix the model appended to the name (e.g. "Robin, Barkeeper")
       const name = rawName.split(/[,\-–]/)[0].trim();
       if (name && role) {
         newChars.push({
@@ -237,7 +248,6 @@ function parseNarratorResponse(text, roster = []) {
           role: role || "Unknown",
           avatar: "🧑",
           gender: gender || "",
-          disposition: VALID_DISPOSITIONS.has(disposition) ? disposition : "neutral",
           note: noteParts.join("|") || "",
         });
       }
@@ -304,6 +314,7 @@ export function useLLM() {
   // Tracks which history assistant message each batch of AI entries came from.
   // Each item: { histIdx: number, items: Array<{ id, raw: string }> }
   const entryBatchesRef = useRef([]);
+  const compactStackRef = useRef([]);
   const contextWindowRef = useRef(
     AVAILABLE_MODELS.find((m) => m.id === modelId)?.contextWindow ?? 4096
   );
@@ -384,25 +395,34 @@ export function useLLM() {
   const generate = useCallback(async (userMessage, callbacks) => {
     if (statusRef.current !== "ready") return;
 
-    const { onPlaceholder, onChunk, onComplete, onError, onCompact } = callbacks;
+    const { onPlaceholder, onChunk, onComplete, onError, onCompact, onCompacting } = callbacks;
 
+    setStatus("generating");
+    statusRef.current = "generating";
+
+    if (needsCompaction(historyRef.current, contextWindowRef.current)) onCompacting?.();
     const { history: compacted, compacted: wasCompacted, summary, firstSurvivedOrigIdx } = await compactHistory(historyRef.current, engineRef.current, contextWindowRef.current);
-    historyRef.current = compacted;
     if (wasCompacted) {
+      compactStackRef.current.push({
+        history: historyRef.current,
+        entryBatches: entryBatchesRef.current,
+      });
+      historyRef.current = compacted;
       onCompact?.(summary);
       // Rebase entryBatchesRef: drop batches that were summarized, shift survivors.
       // After compaction the kept messages start at index 3 (system + 2 synthetic summary messages).
       entryBatchesRef.current = entryBatchesRef.current
         .filter((b) => b.histIdx >= firstSurvivedOrigIdx)
         .map((b) => ({ ...b, histIdx: b.histIdx - firstSurvivedOrigIdx + 3 }));
+    } else {
+      historyRef.current = compacted;
+      // Clean up compacting entry if compaction didn't end up running
+      onCompact?.(null);
     }
 
     historyRef.current.push({ role: "user", content: userMessage });
     console.debug("[YCDA] Prompt →", userMessage);
     onPlaceholder(STREAMING_ENTRY_ID);
-
-    setStatus("generating");
-    statusRef.current = "generating";
 
     cancelledRef.current = false;
     let committed = false;
@@ -482,6 +502,7 @@ export function useLLM() {
   const setSystemPrompt = useCallback((prompt) => {
     historyRef.current = [{ role: "system", content: prompt }];
     entryBatchesRef.current = [];
+    compactStackRef.current = [];
   }, []);
 
   const setRoster = useCallback((names) => {
@@ -523,6 +544,14 @@ export function useLLM() {
         histIdx: b.histIdx > histIdx ? b.histIdx - 2 : b.histIdx,
       }));
     }
+  }, []);
+
+  const undoCompaction = useCallback(() => {
+    const snapshot = compactStackRef.current.pop();
+    if (!snapshot) return false;
+    historyRef.current = snapshot.history;
+    entryBatchesRef.current = snapshot.entryBatches;
+    return true;
   }, []);
 
   const cancel = useCallback(() => {
@@ -587,7 +616,8 @@ export function useLLM() {
   const restoreSnapshot = useCallback(({ history, entryBatches }) => {
     historyRef.current      = history;
     entryBatchesRef.current = entryBatches;
+    compactStackRef.current = [];
   }, []);
 
-  return { status, progress, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
+  return { status, progress, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
 }
