@@ -73,6 +73,9 @@ function App() {
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
   const pendingPostInitRef = useRef(null);
+  // Tracks which AI entry batches introduced which NPCs, so NPC removals
+  // can be applied when those entries are removed (re-run, remove-last, etc.)
+  const npcBatchesRef = useRef([]);
 
   const theme = useMemo(() => buildTheme(themeMode, fontSerif, fontScale), [themeMode, fontSerif, fontScale]);
   const isDark = themeMode === "dark";
@@ -152,6 +155,7 @@ function App() {
     setEntries(initialEntries);
     setNpcs(initialNpcs);
     setLastRun(null);
+    npcBatchesRef.current = [];
     setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext));
     setRoster([...chars.map((c) => c.name), ...initialNpcs.map((n) => n.name)]);
 
@@ -185,8 +189,10 @@ function App() {
 
   const playerCharacter = characters.find((c) => c.isPlayer);
 
+  // Returns { addedNpcIds, updatedNpcs } so callers can track NPC changes per batch.
   const mergeNewChars = (newChars) => {
-    if (!newChars.length) return;
+    const empty = { addedNpcIds: [], updatedNpcs: [] };
+    if (!newChars.length) return empty;
     // Deduplicate against the full roster: party + existing npcs
     const rosterNames = [
       ...characters.map((c) => c.name.toLowerCase()),
@@ -212,10 +218,19 @@ function App() {
       return ABSTRACT_ROLE_PREFIXES.some((p) => roleLower.startsWith(p));
     };
     const nonAbstract = newChars.filter((c) => !isAbstractChar(c));
-    if (!nonAbstract.length) return;
+    if (!nonAbstract.length) return empty;
 
     const updates = nonAbstract.filter((c) => isVariant(c.name));
     const truly_new = nonAbstract.filter((c) => !isVariant(c.name));
+
+    // Snapshot pre-update state for existing NPCs that will be upgraded
+    const updatedNpcs = [];
+    for (const u of updates) {
+      const existing = npcs.find((n) => n.name.toLowerCase() === u.name.toLowerCase());
+      if (existing) {
+        updatedNpcs.push({ id: existing.id, prev: { role: existing.role, gender: existing.gender, note: existing.note } });
+      }
+    }
 
     setNpcs((prev) => {
       let updated = prev;
@@ -238,6 +253,37 @@ function App() {
       setRoster([...characters.map((c) => c.name), ...updated.map((n) => n.name)]);
       return updated;
     });
+
+    return { addedNpcIds: truly_new.map((c) => c.id), updatedNpcs };
+  };
+
+  // When entries are removed, check if any NPC batch has lost all its entries.
+  // If so, remove the NPCs that batch added and restore any it updated.
+  const cleanupNpcsAfterRemoval = (remainingEntryIds) => {
+    const npcIdsToRemove = new Set();
+    const npcsToRestore = [];
+    npcBatchesRef.current = npcBatchesRef.current.filter((batch) => {
+      const hasRemaining = [...batch.entryIds].some((id) => remainingEntryIds.has(id));
+      if (!hasRemaining) {
+        batch.addedNpcIds.forEach((id) => npcIdsToRemove.add(id));
+        npcsToRestore.push(...batch.updatedNpcs);
+        return false;
+      }
+      return true;
+    });
+    if (npcIdsToRemove.size === 0 && npcsToRestore.length === 0) return;
+    setNpcs((prev) => {
+      let updated = prev.filter((n) => !npcIdsToRemove.has(n.id));
+      if (npcsToRestore.length) {
+        const restoreMap = new Map(npcsToRestore.map((r) => [r.id, r.prev]));
+        updated = updated.map((npc) => {
+          const restore = restoreMap.get(npc.id);
+          return restore ? { ...npc, ...restore } : npc;
+        });
+      }
+      setRoster([...characters.map((c) => c.name), ...updated.map((n) => n.name)]);
+      return updated;
+    });
   };
 
   const wrapWithExplorePrompt = (msg) => {
@@ -253,7 +299,14 @@ function App() {
       onComplete: (id, parsedEntries, newChars) => {
         setEntries((prev) => [...prev.filter((e) => e.id !== id), ...parsedEntries]);
         setLastRun({ userMessage, aiEntryIds: new Set(parsedEntries.map((e) => e.id)) });
-        mergeNewChars(newChars);
+        const { addedNpcIds, updatedNpcs } = mergeNewChars(newChars);
+        if (addedNpcIds.length || updatedNpcs.length) {
+          npcBatchesRef.current.push({
+            entryIds: new Set(parsedEntries.map((e) => e.id)),
+            addedNpcIds,
+            updatedNpcs,
+          });
+        }
       },
       onError: () => setEntries((prev) => prev.filter((e) => e.id !== STREAMING_ENTRY_ID)),
       onCompacting: () => setEntries((prev) => [...prev, { id: COMPACTING_ENTRY_ID, type: "story", source: "compacting" }]),
@@ -283,6 +336,7 @@ function App() {
     setNpcs(savedNpcs);
     setEntries(savedEntries);
     setLastRun(null);
+    npcBatchesRef.current = [];
     setPendingStory(null);
     setSavesDialogOpen(false);
   };
@@ -300,7 +354,11 @@ function App() {
 
   const handleRerun = () => {
     if (!lastRun || !isLLMReady) return;
-    setEntries((prev) => prev.filter((e) => !lastRun.aiEntryIds.has(e.id)));
+    setEntries((prev) => {
+      const remaining = prev.filter((e) => !lastRun.aiEntryIds.has(e.id));
+      cleanupNpcsAfterRemoval(new Set(remaining.map((e) => e.id)));
+      return remaining;
+    });
     setLastRun(null);
     revertLast();
     callGenerate(lastRun.userMessage);
@@ -315,7 +373,9 @@ function App() {
         return prev.slice(0, -1);
       }
       pruneEntries([last.id]);
-      return prev.slice(0, -1);
+      const remaining = prev.slice(0, -1);
+      cleanupNpcsAfterRemoval(new Set(remaining.map((e) => e.id)));
+      return remaining;
     });
   };
 
@@ -459,7 +519,7 @@ function App() {
           )}
 
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", overflow: "hidden", bgcolor: "background.default", pl: isMobile ? "22px" : 0 }}>
-            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} playerName={playerCharacter?.name} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => prev.filter((e) => e.id !== id)); }} />
+            <StoryPanel entries={entries} isDark={isDark} lastRunIds={lastRun?.aiEntryIds ?? null} playerName={playerCharacter?.name} onRemoveEntry={(id) => { pruneEntries([id]); setEntries((prev) => { const remaining = prev.filter((e) => e.id !== id); cleanupNpcsAfterRemoval(new Set(remaining.map((e) => e.id))); return remaining; }); }} />
             <InputBar
               onSubmit={handleSubmit}
               onContinue={() => {
