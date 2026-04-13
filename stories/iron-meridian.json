@@ -1,0 +1,150 @@
+{
+  "id": "iron-meridian",
+  "title": "Iron Meridian",
+  "description": "The war between the Hegemony and the Outer Provinces has ground on for eleven years. You're a mech pilot in the 4th Independent Company — expendable, under-supplied, and deployed to a dead colony world where something was buried that both sides will kill to reach. Strap into your cockpit. Nobody is coming to save you.",
+  "setup": [
+    { "field": "name", "label": "Your callsign / pilot name" },
+    { "field": "gender", "label": "Your gender" },
+    { "field": "class", "label": "Your mech designation (e.g. Striker, Siege-Type, Recon)", "default": "Striker" },
+    { "field": "description", "label": "Describe your pilot (follows \"You are\")", "multiline": true, "default": "a combat-hardened mech pilot with no unit left to go home to. You transferred into the 4th Independent after your last company was wiped out at Ghelen Station. You don't talk about Ghelen." },
+    { "field": "powers", "label": "What makes you dangerous? (follows \"You have\")", "multiline": true, "default": "uncanny spatial awareness in close-quarters mech combat and a reputation for surviving engagements that should have killed you. Your reactor runs hot, your targeting software is jury-rigged, and you fight like someone who stopped being afraid a long time ago." }
+  ],
+  "scenarios": [
+    { "id": "s1", "label": "Engage hostiles", "icon": "🎯", "prompt": "Enemy mechs are closing fast. Engage them head-on with everything you've got." },
+    { "id": "s2", "label": "Flank and ambush", "icon": "🔻", "prompt": "Use the terrain to circle around the enemy and hit them from an unexpected angle." },
+    { "id": "s3", "label": "Hail on comms", "icon": "📡", "prompt": "Open a communication channel and hail whoever is out there — friend or enemy." },
+    { "id": "s4", "label": "Run diagnostics", "icon": "🔧", "prompt": "Run a full diagnostic on your mech — check reactor output, ammo reserves, armor integrity, and system warnings." },
+    { "id": "s5", "label": "Scout ahead", "icon": "👁️", "prompt": "Push forward alone on passive sensors to scout the area before committing the squad." },
+    { "id": "s6", "label": "Fall back", "icon": "🔙", "prompt": "Pull back to a defensible position and regroup with whatever's left of the squad." },
+    { "id": "s7", "label": "Talk to Vasik", "icon": "🪖", "prompt": "Get on a private channel with Vasik and press him for the real mission parameters — what aren't they telling you?" },
+    { "id": "s8", "label": "Check on Rook", "icon": "🔩", "prompt": "Find Rook and see what she can do about the state of your mech. Ask what parts and munitions they actually have left." }
+  ],
+  "characters": [
+    {
+      "id": 1,
+      "name": "Wren",
+      "class": "Striker",
+      "avatar": "🦅",
+      "gender": "Female",
+      "isPlayer": true,
+      "disposition": "friendly"
+    },
+    {
+      "id": 2,
+      "name": "Hask",
+      "class": "Siege-Type",
+      "avatar": "🛡️",
+      "gender": "Male",
+      "isPlayer": false,
+      "disposition": "friendly"
+    },
+    {
+      "id": 3,
+      "name": "Lira",
+      "class": "Recon",
+      "avatar": "📡",
+      "gender": "Female",
+      "isPlayer": false,
+      "disposition": "friendly"
+    }
+  ],
+  "npcs": [
+    {
+      "id": 101,
+      "name": "Vasik",
+      "role": "Company Commander",
+      "avatar": "🪖",
+      "gender": "Male",
+      "disposition": "neutral",
+      "note": "Commander of the 4th Independent. Career officer who requested this posting — unusual, since the 4th is a punishment detail. Knows more than he shares."
+    },
+    {
+      "id": 102,
+      "name": "Rook",
+      "role": "Chief Mechanic",
+      "avatar": "🔧",
+      "gender": "Female",
+      "disposition": "friendly",
+      "note": "Keeps the company's mechs running on salvage and stubbornness. Former Hegemony factory tech who deserted. Blunt, competent, exhausted."
+    },
+    {
+      "id": 103,
+      "name": "Colonel Stahl",
+      "role": "Hegemony Field Commander",
+      "avatar": "⚙️",
+      "gender": "Male",
+      "disposition": "hostile",
+      "note": "Commands the Hegemony forces in this sector. Methodical and brutal. His unit insignia — a black gear — is feared across the Outer Provinces."
+    },
+    {
+      "id": 104,
+      "name": "Juno",
+      "role": "Intelligence Operative",
+      "avatar": "🕶️",
+      "gender": "Female",
+      "disposition": "neutral",
+      "note": "Showed up at the 4th's forward base with classified orders and no explanation. Claims to be Provincial Intelligence. Nobody trusts her."
+    }
+  ],
+  "entries": [
+    {
+      "id": 0,
+      "type": "story",
+      "text": "The drop shuttle hits atmosphere hard. The hull screams. Red emergency lighting paints the cargo bay in blood-coloured stripes, and your mech — locked into its transit cradle — shudders with every jolt. Through the narrow viewport you can see the surface of Meridian-IV: grey rock, dead cities, and a sky the colour of a bruise."
+    },
+    {
+      "id": 1,
+      "type": "story",
+      "text": "You are ${description}"
+    },
+    {
+      "id": 2,
+      "type": "story",
+      "text": "You have ${powers}"
+    },
+    {
+      "id": 3,
+      "type": "story",
+      "text": "Three mechs are locked in beside yours. Hask's siege-frame takes up half the bay — a squat, over-armoured bruiser bristling with missile racks, its paint long since blasted down to primer. Across from him, Lira's recon unit is lean and sensor-studded, built for speed and electronic warfare. Both pilots are strapped into their cockpits, visors down."
+    },
+    {
+      "id": 4,
+      "type": "story",
+      "text": "The shuttle's comm crackles. Commander Vasik's voice cuts through the turbulence — flat, practised, giving nothing away."
+    },
+    {
+      "id": 5,
+      "type": "say",
+      "character": "Vasik",
+      "text": "All units, listen up. Meridian-IV has been dark for six years. Colony abandoned during the first Hegemony push. Our orders are to secure a research installation in grid seven-seven and hold it until extraction. Expect Hegemony presence — signals intelligence says they want whatever's in that facility too. Rules of engagement are weapons-free on contact."
+    },
+    {
+      "id": 6,
+      "type": "say",
+      "character": "Hask",
+      "text": "Weapons-free on a dead colony. That's reassuring. What exactly are we securing, Commander?"
+    },
+    {
+      "id": 7,
+      "type": "say",
+      "character": "Vasik",
+      "text": "That's need-to-know, Hask. Right now you need to know how to land without breaking your legs. Sixty seconds to drop."
+    },
+    {
+      "id": 8,
+      "type": "story",
+      "text": "Lira's voice comes through on the squad's private channel — tighter, quieter."
+    },
+    {
+      "id": 9,
+      "type": "say",
+      "character": "Lira",
+      "text": "I'm picking up electromagnetic signatures on the surface. Multiple sources, moving in formation. That's not residual colony infrastructure — that's active mech signatures. At least a lance, maybe more."
+    },
+    {
+      "id": 10,
+      "type": "story",
+      "text": "The cradle locks disengage with a heavy clunk. Your mech's reactor hums to full power, the vibration settling into your bones like an old habit. HUD comes online: ammo count, armour readout, targeting reticle. Everything is green — or close enough.\n\nThe bay doors blow open. Wind and dust howl in. Below you, the ruins of a colony stretch to the horizon under a darkening sky. Somewhere out there, Hegemony mechs are already moving.\n\nThirty seconds to drop."
+    }
+  ]
+}
