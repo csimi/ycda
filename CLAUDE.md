@@ -2,6 +2,10 @@
 
 Text-based CYOA game powered by an in-browser LLM (web-llm). React + Vite + Material UI frontend. No backend — everything runs client-side.
 
+## Documentation upkeep
+
+After changing any code related to the AI model, prompts, context/history management, or the UI, always check whether `CLAUDE.md` and `README.md` need updates to stay accurate. Update them in the same change when they do.
+
 ## Stack
 
 - **Vite + React 19** — `npm run dev` to start, `npm run build` to build

@@ -105,20 +105,20 @@ The file appears on the story selection screen automatically on next dev server 
 
 | Action | How |
 |--------|-----|
-| **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Continue** | Let the AI advance the story without player input |
 | **Re-run** | Discard the last AI response and generate a new one |
 | **Remove Last** | Delete the last entry from the feed and LLM history |
 | **Cancel** | Stop the current generation mid-stream |
 | **Say / Do / Story** | Toggle input mode before typing |
 | **Explore** | Toggle explore mode — the AI lingers in the current scene (atmosphere, detail, reactions) instead of advancing the plot |
+| **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Save / Load** | Click the save icon (💾) in the header |
 | **Switch model** | Click the model chip in the header |
 | **Narrator briefing (✨)** | Toggle pre-generation of a narrator briefing at story start |
 
 ## How it works
 
-- The AI Game Master responds using a structured tagged-line format: `[STORY]`, `[SAY:Name]`, `[DO:Name]`, `[NEW_CHAR:name|role|gender|disposition|note]`
+- The AI Game Master responds using a structured tagged-line format: `[STORY]`, `[SAY:Name]`, `[DO:Name]`, `[NEW_CHAR:name|role|gender|note]`
 - New named characters introduced by the AI are automatically added to the character panel
 - Character names in AI output are fuzzy-matched against the known roster to tolerate minor typos
 - Conversation history is automatically compacted (summarised by the model) when it approaches the 4096-token context limit, keeping sessions going indefinitely
