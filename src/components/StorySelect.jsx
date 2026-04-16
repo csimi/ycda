@@ -128,7 +128,7 @@ function UploadCard({ onUpload, isDark }) {
   );
 }
 
-export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory, saves, onLoadSave, onDeleteSave, onOpenSavesDialog, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
+export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, pregenerationEnabled, onTogglePregeneration, uploadedStories, onUploadStory, saves, onLoadSave, onDeleteSave, onOpenSavesDialog, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   return (
     <Box
       sx={{
@@ -138,7 +138,7 @@ export default function StorySelect({ onPlay, isDark, onToggleTheme, llmStatus, 
         flexDirection: "column",
       }}
     >
-      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmModelId={llmModelId} llmError={llmError} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} onOpenSaves={onOpenSavesDialog} isMobile={isMobile} fontSerif={fontSerif} onToggleFontSerif={onToggleFontSerif} fontScale={fontScale} onIncreaseFontSize={onIncreaseFontSize} onDecreaseFontSize={onDecreaseFontSize} />
+      <AppHeader isDark={isDark} onToggleTheme={onToggleTheme} llmStatus={llmStatus} llmProgress={llmProgress} llmLoadingPhase={llmLoadingPhase} llmModelId={llmModelId} llmError={llmError} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} pregenerationEnabled={pregenerationEnabled} onTogglePregeneration={onTogglePregeneration} onOpenSaves={onOpenSavesDialog} isMobile={isMobile} fontSerif={fontSerif} onToggleFontSerif={onToggleFontSerif} fontScale={fontScale} onIncreaseFontSize={onIncreaseFontSize} onDecreaseFontSize={onDecreaseFontSize} />
       <Box sx={{ flexGrow: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
       {/* Hero */}

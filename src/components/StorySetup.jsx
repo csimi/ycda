@@ -12,6 +12,7 @@ export default function StorySetup({
   onToggleTheme,
   llmStatus,
   llmProgress,
+  llmLoadingPhase,
   llmModelId,
   llmError,
   onSwitchModel,
@@ -46,6 +47,7 @@ export default function StorySetup({
         onToggleTheme={onToggleTheme}
         llmStatus={llmStatus}
         llmProgress={llmProgress}
+        llmLoadingPhase={llmLoadingPhase}
         llmModelId={llmModelId}
         llmError={llmError}
         onSwitchModel={onSwitchModel}

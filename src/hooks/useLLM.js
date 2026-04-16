@@ -298,6 +298,7 @@ function buildBriefingPayload({ description, characters, npcs, extraContext }) {
 export function useLLM() {
   const [status, setStatus] = useState("uninitialized");
   const [progress, setProgress] = useState(0);
+  const [loadingPhase, setLoadingPhase] = useState("downloading"); // "downloading" | "loading"
   const [modelId, setModelId] = useState(getInitialModelId);
   const [error, setError] = useState(null);
   const engineRef = useRef(null);
@@ -327,6 +328,7 @@ export function useLLM() {
       setStatus("loading");
       statusRef.current = "loading";
       setProgress(0);
+      setLoadingPhase("downloading");
       setError(null);
       try {
         await engineRef.current.reload(id, { temperature: 0.7, top_p: 0.9 });
@@ -358,6 +360,8 @@ export function useLLM() {
     engine.setInitProgressCallback((report) => {
       if (engineRef.current !== engine) return;
       setProgress(report.progress ?? 0);
+      const text = report.text ?? "";
+      setLoadingPhase(text.toLowerCase().includes("fetch") ? "downloading" : "loading");
     });
 
     loadModel(modelId);
@@ -619,5 +623,5 @@ export function useLLM() {
     compactStackRef.current = [];
   }, []);
 
-  return { status, progress, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
+  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
 }

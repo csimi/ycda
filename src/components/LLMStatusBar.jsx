@@ -16,7 +16,7 @@ const MOBILE_BADGE = {
 };
 
 const STATUS_CONFIG = {
-  loading:      { label: "Loading AI…",      color: "default" },
+  loading:      { color: "default" },
   ready:        { label: "AI ready",          color: "success" },
   generating:   { label: "Generating…",       color: "info" },
   initializing: { label: "Preparing story…",  color: "info" },
@@ -24,19 +24,23 @@ const STATUS_CONFIG = {
   error:        { label: "AI error",           color: "error" },
 };
 
-export default function LLMStatusBar({ status, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad }) {
+export default function LLMStatusBar({ status, loadingPhase, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad }) {
   const [anchor, setAnchor] = useState(null);
 
   if (status === "uninitialized") return null;
   const cfg = STATUS_CONFIG[status];
   if (!cfg) return null;
 
+  const label = status === "loading"
+    ? (loadingPhase === "downloading" ? "Downloading model…" : "Loading AI…")
+    : cfg.label;
+
   const canSwitch = status === "ready" || status === "cancelled" || status === "error";
 
   const chip = (
     <Chip
       icon={<SmartToyIcon sx={{ fontSize: "0.75rem !important" }} />}
-      label={cfg.label}
+      label={label}
       color={cfg.color}
       size="small"
       onClick={canSwitch ? (e) => setAnchor(e.currentTarget) : undefined}
