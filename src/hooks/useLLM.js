@@ -302,6 +302,7 @@ export function useLLM() {
   const [modelId, setModelId] = useState(getInitialModelId);
   const [error, setError] = useState(null);
   const engineRef = useRef(null);
+  const workerRef = useRef(null);
   const historyRef = useRef([]);
   const rosterRef = useRef([]);
   const statusRef = useRef("uninitialized");
@@ -330,13 +331,17 @@ export function useLLM() {
       setProgress(0);
       setLoadingPhase("downloading");
       setError(null);
+      // Re-register progress callback for this load, gated to myToken, so
+      // stale progress from a previous cancelled load never reaches the UI.
+      engineRef.current.setInitProgressCallback((report) => {
+        if (myToken !== loadTokenRef.current) return;
+        setProgress(report.progress ?? 0);
+        const text = report.text ?? "";
+        setLoadingPhase(text.toLowerCase().includes("fetch") ? "downloading" : "loading");
+      });
       try {
         await engineRef.current.reload(id, { temperature: 0.7, top_p: 0.9 });
-        if (myToken !== loadTokenRef.current) {
-          // Superseded or cancelled while reloading — release GPU resources.
-          await engineRef.current?.unload?.().catch(() => {});
-          return;
-        }
+        if (myToken !== loadTokenRef.current) return;
         setModelId(id);
         contextWindowRef.current = AVAILABLE_MODELS.find((m) => m.id === id)?.contextWindow ?? 4096;
         setStatus("ready");
@@ -354,28 +359,34 @@ export function useLLM() {
   }, []);
 
   useEffect(() => {
-    const engine = new webllm.MLCEngine();
-    engineRef.current = engine;
+    // Guard against StrictMode double-mount creating a second worker before
+    // the first teardown finishes.
+    if (engineRef.current) return;
 
-    engine.setInitProgressCallback((report) => {
-      if (engineRef.current !== engine) return;
-      setProgress(report.progress ?? 0);
-      const text = report.text ?? "";
-      setLoadingPhase(text.toLowerCase().includes("fetch") ? "downloading" : "loading");
-    });
+    const worker = new Worker(
+      new URL("../workers/llmWorker.js", import.meta.url),
+      { type: "module" }
+    );
+    const engine = new webllm.WebWorkerMLCEngine(worker);
+    workerRef.current = worker;
+    engineRef.current = engine;
 
     loadModel(modelId);
 
     return () => {
       // Bump the token so any in-flight load bails out, then wait for the
       // chain to drain before unloading — unloading mid-reload can leave
-      // WebGPU resources pinned. Errors are swallowed because the engine
-      // may already be gone.
+      // WebGPU resources pinned. Then terminate the worker thread.
       loadTokenRef.current++;
-      loadChainRef.current.finally(() => {
-        engine.unload?.().catch(() => {});
-      });
+      const w = workerRef.current;
+      const e = engineRef.current;
       if (engineRef.current === engine) engineRef.current = null;
+      if (workerRef.current === worker) workerRef.current = null;
+      loadChainRef.current.finally(() => {
+        e?.unload?.().catch(() => {}).finally(() => {
+          w?.terminate();
+        });
+      });
     };
   }, []);
 
@@ -389,6 +400,10 @@ export function useLLM() {
     loadTokenRef.current++;
     setStatus("cancelled");
     statusRef.current = "cancelled";
+    // Fire unload() to abort in-flight downloads. The reload() promise will
+    // reject, run1 will settle (stale-token branch), and retryLoad/switchModel
+    // can then start. During GPU init the worker may not process unload()
+    // until init completes — that delay is unavoidable.
     engineRef.current?.unload?.().catch(() => {});
   }, []);
 
@@ -560,6 +575,7 @@ export function useLLM() {
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
+    engineRef.current?.interruptGenerate?.();
   }, []);
 
   const switchModel = useCallback((newModelId) => {

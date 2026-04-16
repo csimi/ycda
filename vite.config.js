@@ -6,4 +6,5 @@ export default defineConfig({
   base: "/ycda/",
   plugins: [react()],
   optimizeDeps: { exclude: ["@mlc-ai/web-llm"] },
+  worker: { format: "es" },
 })
