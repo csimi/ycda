@@ -50,7 +50,7 @@
   ],
   "npcs": [
     {
-      "id": 1,
+      "id": 101,
       "name": "Mira",
       "role": "Innkeeper",
       "avatar": "👩",
@@ -59,7 +59,7 @@
       "note": "Knows local rumours. Owes a favour."
     },
     {
-      "id": 2,
+      "id": 102,
       "name": "Thane Vorrick",
       "role": "Guard Captain",
       "avatar": "💂",
@@ -68,7 +68,7 @@
       "note": "Suspicious of outsiders. Bribeable."
     },
     {
-      "id": 3,
+      "id": 103,
       "name": "The Hollow One",
       "role": "Unknown",
       "avatar": "👤",
@@ -99,9 +99,8 @@
     },
     {
       "id": 4,
-      "type": "say",
-      "character": "Aelindra",
-      "text": "Something moved behind that oak. I've been tracking it for the last ten minutes — it's not an animal."
+      "type": "story",
+      "text": "You keep your voice low. \"Something moved behind that oak. I've been tracking it for the last ten minutes — it's not an animal.\""
     },
     {
       "id": 5,
@@ -110,9 +109,8 @@
     },
     {
       "id": 6,
-      "type": "do",
-      "character": "Aelindra",
-      "text": "Nocks an arrow and steps silently toward the oak, eyes narrowing as she peers into the shadows."
+      "type": "story",
+      "text": "You nock an arrow and step silently toward the oak, eyes narrowing as you peer into the shadows."
     },
     {
       "id": 7,
