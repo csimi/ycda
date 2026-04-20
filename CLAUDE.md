@@ -221,6 +221,8 @@ Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`). Each entry has a `mob
 | Mistral 7B | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | ~4.2 GB | 4096 | no |
 | Llama 3.1 8B | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
 | Hermes 2 Pro 8B | `Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| Hermes 3 8B | `Hermes-3-Llama-3.1-8B-q4f16_1-MLC` | ~4.5 GB | 4096 | no |
+| Qwen 3 8B | `Qwen3-8B-q4f16_1-MLC` | ~4.7 GB | 4096 | no |
 | **Gemma 2 9B** *(default on desktop)* | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 | no |
 
 `isMobileDevice()` (UA-based, also exported from `useLLM.js`) is used by `getInitialModelId` to pick the mobile default when no `modelId` is in localStorage.

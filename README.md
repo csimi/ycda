@@ -42,6 +42,8 @@ The model is selected in-app via the AI status chip in the header. Weights are d
 | Mistral 7B | ~4.2 GB | ❌ | Good general quality |
 | Llama 3.1 8B | ~4.5 GB | ❌ | Solid general quality |
 | Hermes 2 Pro 8B | ~4.5 GB | ❌ | Good tag-format adherence |
+| Hermes 3 8B | ~4.5 GB | ❌ | Roleplay-focused fine-tune |
+| Qwen 3 8B | ~4.7 GB | ❌ | Strong reasoning and instruction following |
 | **Gemma 2 9B** | ~5.5 GB | ❌ | **default on desktop** — largest option, needs more VRAM |
 
 The 8B models require ~6 GB of available GPU memory. If generation stalls or the page crashes, switch to a smaller model.

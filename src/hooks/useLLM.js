@@ -111,6 +111,7 @@ async function compactHistory(history, engine, contextWindow) {
 // mobile: "ok" — fits comfortably on a 1–2 year old flagship
 //         "maybe" — borderline, may OOM on 8 GB devices
 //         "no" — almost certainly won't run on phones
+// Ordered ascending by size (VRAM / download cost). separator marks the mobile/desktop boundary.
 export const AVAILABLE_MODELS = [
   { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",    label: "Llama 3.2 1B",      size: "~0.8 GB", contextWindow: 4096, mobile: "ok"    },
   { id: "gemma-2-2b-it-q4f16_1-MLC",            label: "Gemma 2 2B",        size: "~1.9 GB", contextWindow: 4096, mobile: "maybe" },
@@ -120,6 +121,8 @@ export const AVAILABLE_MODELS = [
   { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", label: "Mistral 7B",        size: "~4.2 GB", contextWindow: 4096, mobile: "no"    },
   { id: "Llama-3.1-8B-Instruct-q4f16_1-MLC",    label: "Llama 3.1 8B",      size: "~4.5 GB", contextWindow: 4096, mobile: "no"    },
   { id: "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",  label: "Hermes 2 Pro 8B",   size: "~4.5 GB", contextWindow: 4096, mobile: "no"    },
+  { id: "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",    label: "Hermes 3 8B",       size: "~4.5 GB", contextWindow: 4096, mobile: "no"    },
+  { id: "Qwen3-8B-q4f16_1-MLC",                 label: "Qwen 3 8B",         size: "~4.7 GB", contextWindow: 4096, mobile: "no"    },
   { id: "gemma-2-9b-it-q4f16_1-MLC",            label: "Gemma 2 9B",        size: "~5.5 GB", contextWindow: 4096, mobile: "no", recommended: true },
 ];
 
