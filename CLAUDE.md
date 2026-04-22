@@ -192,25 +192,33 @@ const {
 - **`setRoster(names)`** — updates the name list used for fuzzy SAY/DO matching.
 - **`switchModel(newModelId)`** — persists the choice to localStorage and delegates to `loadModel`. Allowed from `"ready"`, `"cancelled"`, and `"error"` states.
 - **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
-- **`undoCompaction()`** — pops the most recent pre-compaction snapshot from `compactStackRef` and restores `historyRef` and `entryBatchesRef`. Returns `true` if a snapshot existed. Supports multiple consecutive undos when compaction has run more than once. Called by "Remove Last" when it hits a compact entry.
+- **`undoCompaction()`** — pops the most recent pre-compaction snapshot from `compactStackRef` and restores `summaryRef`. Returns `true` if a snapshot existed. Supports multiple consecutive undos when compaction has run more than once. Called by "Remove Last" when it hits a compact entry.
 - **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
 - **`updateNpcProfile(npc, interactionLog, { onDone, onError })`** — queries the LLM to update a single NPC's `role`, `disposition`, and `note`. Uses a minimal task-specific system message (NOT the full GM system prompt) and the interaction log only; the log is trimmed from the oldest line until the payload fits within `contextWindow - NPC_UPDATE_OUTPUT_BUDGET` (256 tokens reserved for output). The request passes `max_tokens: NPC_UPDATE_OUTPUT_BUDGET` so web-llm stops cleanly. The prompt includes the current profile and instructs the model to **evolve** it — preserving established personality, secrets, and motivations that are still true and only revising what interactions have changed — rather than rewriting from scratch. NOTE is capped at 2–3 short sentences (<50 words) so the model self-limits before the token cap. Calls `onDone({ role, disposition, note })` on success. Sets status to `"initializing"` while running. App snapshots `getSystemPromptLength()` before calling `appendToSystemPrompt`, then pushes a `source: "character_update"` entry storing `prevNpc`, `updated`, and `systemPromptLength` for undo.
 - **`getSystemPromptLength()`** → `number` — returns the current byte length of the system message content. Used to snapshot a restore point before `appendToSystemPrompt`.
 - **`truncateSystemPrompt(length)`** — trims the system message back to `length` characters. Called by "Remove Last" when undoing a `character_update` entry.
-- **`getSnapshot()`** → `{ history, entryBatches }` — serializable snapshot for saving.
-- **`restoreSnapshot({ history, entryBatches })`** — restores a saved snapshot.
+- **`getSnapshot()`** → `{ history, entryBatches, summary }` — serializable snapshot for saving.
+- **`restoreSnapshot({ history, entryBatches, summary })`** — restores a saved snapshot.
 
-### Context compaction
+### Context management — rolling window + running summary
 
-When the estimated token count of `historyRef` exceeds 90 % of the model's context window, `compactHistory` is called before the next generation:
-1. `onCompacting()` fires so the app can insert a `"compacting"` spinner entry.
-2. The pre-compaction `historyRef` and `entryBatchesRef` are pushed onto `compactStackRef` (a stack supporting multiple undos).
-3. A summary of the oldest messages is requested from the LLM (temperature 0.2).
-4. The history is rebuilt as: `[system, synthetic-user-summary, synthetic-assistant-ack, ...recent pairs]`.
-5. `entryBatchesRef` indices are rebased accordingly.
-6. `onCompact(summary)` fires so the app can replace the `"compacting"` entry with a `"compact"` divider.
+`historyRef` is the append-only record of every user/assistant exchange. The prompt actually sent to the LLM is **derived** each turn by `buildPrompt(history, summary, contextWindow)`:
 
-"Remove Last" on a compact entry calls `undoCompaction()` to restore the pre-compaction state, allowing further removal of older entries.
+1. Start with `[system, summary-user, summary-assistant]` when a `summaryRef.text` exists.
+2. Walk backwards from the newest message, adding each until the next one would overflow `contextWindow - GENERATION_BUDGET`.
+3. Nudge the window start forward past any orphan assistant message so the prompt begins on a user turn.
+
+This keeps the prompt **always near the budget** — the context window is used to its fullest every turn, not just right before compaction.
+
+`summaryRef = { text, coveredUpTo }` is a running summary, decoupled from history:
+- `text` — plain prose, ~4–6 sentences; refreshed (not appended) each compaction so it stays a stable size.
+- `coveredUpTo` — the history index before which everything is summarized. Walks forward only.
+
+**Compaction signal** is `UNSUMMARIZED_COMPACT_RATIO` (0.25) — token-based, not message-count, so it adapts to message size. Before each generation: if the rolling window would drop unsummarized content whose tokens exceed 25% of the prompt budget (`contextWindow - GENERATION_BUDGET`), `extendSummary` runs first (temperature 0.2) and folds those messages into the running summary along with any prior summary text. On failure, generation proceeds without compaction — the rolling window just drops oldest messages for this turn.
+
+**Undo:** `compactStackRef` stores prior `{ summary }` snapshots; `undoCompaction()` restores the previous summary. `historyRef` is never mutated by compaction, so history-level operations (`pruneEntries`, `revertLast`) are independent — they only adjust `coveredUpTo` when a spliced range was already summarized.
+
+"Remove Last" on a compact entry calls `undoCompaction()`, shrinking the summary back one step so the user can continue removing older entries.
 
 ### Available models
 
@@ -268,5 +276,5 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 ## Known constraints
 
 - LLM runs on the main thread (not a Worker). The UI may stutter during heavy generation on low-end GPUs.
-- Context window is 4096 tokens for all available models. Compaction kicks in at 90% usage.
+- Context window is 4096 tokens for all available models. The rolling prompt window fills the budget every turn; compaction fires when about-to-drop unsummarized tokens exceed 25% of the prompt budget.
 - All debug output uses `console.debug` with the `[YCDA]` prefix: prompt, raw response, parsed entries, new characters, compaction summaries.

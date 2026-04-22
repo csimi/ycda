@@ -109,10 +109,10 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
   if (entry.type === "story" && entry.source === "scenario") {
     const color = isDark ? "rgba(168,85,247,0.6)" : "rgba(126,34,206,0.55)";
     const lineColor = isDark ? "rgba(168,85,247,0.15)" : "rgba(126,34,206,0.12)";
-    return (
+    const inner = (
       <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
         <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color, cursor: entry.description ? "help" : "default" }}>
           <MovieIcon sx={{ fontSize: 11 }} />
           <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
             {entry.text}
@@ -121,6 +121,9 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
         <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
       </Box>
     );
+    return entry.description
+      ? <Tooltip title={entry.description} placement="top" arrow slotProps={{ tooltip: { sx: { maxWidth: 360, whiteSpace: "pre-wrap" } } }}><span>{inner}</span></Tooltip>
+      : inner;
   }
 
   if (entry.type === "story" && entry.source === "character_update") {

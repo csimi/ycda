@@ -17,13 +17,10 @@ export function isMobileDevice() {
 const GENERATION_BUDGET = 384;
 // Tokens reserved for NPC profile update output (ROLE + DISPOSITION + short NOTE)
 const NPC_UPDATE_OUTPUT_BUDGET = 256;
-// Compact when history exceeds this fraction of available context
-const COMPACTION_RATIO = 0.90;
-// After compaction, fill history to only this fraction — leaves headroom so the
-// next compaction doesn't trigger immediately on the following turn
-const POST_COMPACT_RATIO = 0.65;
-// Estimated token overhead for the synthetic summary exchange injected after compaction
-const SUMMARY_OVERHEAD = 256;
+// When the rolling window would drop unsummarized content whose tokens exceed
+// this fraction of the prompt budget, extend the running summary before generating.
+// Token-based (not message-count) so the trigger adapts to message size.
+const UNSUMMARIZED_COMPACT_RATIO = 0.25;
 
 // Per-message overhead: role header + framing tokens (rough estimate)
 const MSG_OVERHEAD = 4;
@@ -32,59 +29,73 @@ function estimateHistoryTokens(messages) {
   return messages.reduce((sum, m) => sum + estimateTokenCount(m.content ?? "") + MSG_OVERHEAD, 0);
 }
 
-function needsCompaction(history, contextWindow) {
-  const totalTokens = estimateHistoryTokens(history);
-  const availableBudget = contextWindow - GENERATION_BUDGET;
-  return totalTokens > availableBudget * COMPACTION_RATIO;
+function summaryAsMessages(summary) {
+  if (!summary?.text) return [];
+  return [
+    { role: "user",      content: `Story so far — earlier events summarized:\n${summary.text}` },
+    { role: "assistant", content: "Understood. I will continue from this point using the same tagged output format." },
+  ];
 }
 
-async function compactHistory(history, engine, contextWindow) {
+// Build the actual prompt sent to the LLM:
+//   [system, summary-user, summary-assistant, ...most-recent-messages-that-fit]
+// `historyRef` remains the append-only truth; this is a rolling window on top.
+// Returns the messages plus `firstKeptIdx` — the index in history of the first
+// message included, so the caller can decide whether to extend the summary.
+function buildPrompt(history, summary, contextWindow) {
+  const budget = contextWindow - GENERATION_BUDGET;
   const system = history[0];
-  const messages = history.slice(1);
+  const summaryMessages = summaryAsMessages(summary);
 
-  const totalTokens = estimateHistoryTokens(history);
-  const availableBudget = contextWindow - GENERATION_BUDGET;
+  const floorIdx = summary?.coveredUpTo ?? 1;
+  let usedTokens = estimateHistoryTokens([system, ...summaryMessages]);
 
-  if (totalTokens <= availableBudget * COMPACTION_RATIO) return { history, compacted: false };
-
-  console.debug(`[YCDA] Token usage ${totalTokens}/${contextWindow} — compacting…`);
-
-  // Determine how many recent pairs fit in the post-compaction budget
-  const systemTokens = estimateHistoryTokens([system]);
-  const recentBudget = availableBudget * POST_COMPACT_RATIO - systemTokens - SUMMARY_OVERHEAD;
-
-  const toKeep = [];
-  let usedTokens = 0;
-  // Walk backwards through pairs (assistant at odd index, user at even)
-  for (let i = messages.length - 1; i >= 1; i -= 2) {
-    const pair = [messages[i - 1], messages[i]];
-    const pairTokens = estimateHistoryTokens(pair);
-    if (usedTokens + pairTokens > recentBudget) break;
-    toKeep.unshift(...pair);
-    usedTokens += pairTokens;
+  let firstKeptIdx = history.length;
+  for (let i = history.length - 1; i >= floorIdx; i--) {
+    const msgTokens = estimateHistoryTokens([history[i]]);
+    if (usedTokens + msgTokens > budget) break;
+    usedTokens += msgTokens;
+    firstKeptIdx = i;
   }
 
-  // Always keep at least the last exchange
-  if (toKeep.length === 0) toKeep.push(...messages.slice(-2));
+  // Prompt must start on a user message. Nudge forward past any orphan assistant.
+  while (firstKeptIdx < history.length && history[firstKeptIdx].role !== "user") {
+    firstKeptIdx++;
+  }
 
-  const toSummarize = messages.slice(0, messages.length - toKeep.length);
-  if (toSummarize.length === 0) return { history, compacted: false };
+  // Safety: if budget is so tight that nothing fit, keep at least the latest user message.
+  if (firstKeptIdx >= history.length && history.at(-1)?.role === "user") {
+    firstKeptIdx = history.length - 1;
+  }
 
-  // Build a plain-text transcript of the messages to summarize
-  const transcript = toSummarize.map((m) => {
+  return {
+    messages: [system, ...summaryMessages, ...history.slice(firstKeptIdx)],
+    firstKeptIdx,
+    usedTokens,
+  };
+}
+
+// Extend the running summary to cover history[startIdx..endIdx-1], folding in
+// the prior summary when one exists so the output stays a stable ~4–6 sentences.
+async function extendSummary(history, priorSummaryText, startIdx, endIdx, engine) {
+  const transcript = history.slice(startIdx, endIdx).map((m) => {
     if (m.role === "user")      return `Player: ${m.content}`;
     if (m.role === "assistant") return `Narrator: ${m.content}`;
     return "";
   }).filter(Boolean).join("\n\n");
 
-  console.debug("[YCDA] Compacting context — requesting summary…");
+  const userContent = priorSummaryText
+    ? `Existing summary:\n${priorSummaryText}\n\nNew events to integrate:\n${transcript}\n\nRewrite the summary to include these new events, preserving earlier plot-critical facts that still hold.`
+    : `Game transcript to summarize:\n${transcript}`;
+
+  console.debug("[YCDA] Extending context summary…");
   const result = await engine.chat.completions.create({
     messages: [
       {
         role: "system",
-        content: "You are a precise story summarizer. Summarize the following game transcript into 4–6 sentences. Preserve: character locations, key decisions, NPC dispositions, and any plot-critical facts. Be specific. Output plain prose only — no tags, no bullet points.",
+        content: "You are a precise story summarizer. Produce a 4–6 sentence running summary of the provided material. Preserve: character locations, key decisions, NPC dispositions, and plot-critical facts. Be specific. Output plain prose only — no tags, no bullet points.",
       },
-      { role: "user", content: transcript },
+      { role: "user", content: userContent },
     ],
     temperature: 0.2,
     top_p: 0.9,
@@ -92,22 +103,7 @@ async function compactHistory(history, engine, contextWindow) {
 
   const summary = result.choices[0].message.content.trim();
   console.debug("[YCDA] Context summary →", summary);
-
-  // firstSurvivedOrigIdx: the original history index of the first kept message.
-  // Used by the caller to rebase entryBatchesRef indices after compaction.
-  const firstSurvivedOrigIdx = 1 + (messages.length - toKeep.length);
-
-  return {
-    history: [
-      system,
-      { role: "user",      content: `Story so far — earlier events summarized:\n${summary}` },
-      { role: "assistant", content: "Understood. I will continue from this point using the same tagged output format." },
-      ...toKeep,
-    ],
-    compacted: true,
-    summary,
-    firstSurvivedOrigIdx,
-  };
+  return summary;
 }
 
 // mobile: "ok" — fits comfortably on a 1–2 year old flagship
@@ -321,6 +317,10 @@ export function useLLM() {
   // Tracks which history assistant message each batch of AI entries came from.
   // Each item: { histIdx: number, items: Array<{ id, raw: string }> }
   const entryBatchesRef = useRef([]);
+  // Running summary of everything before historyRef[coveredUpTo]. Decoupled from
+  // history so the rolling prompt window can always fill the context budget.
+  const summaryRef = useRef({ text: null, coveredUpTo: 1 });
+  // Stack of prior summaries, pushed each time compaction runs, for undo.
   const compactStackRef = useRef([]);
   const contextWindowRef = useRef(
     AVAILABLE_MODELS.find((m) => m.id === modelId)?.contextWindow ?? 4096
@@ -424,28 +424,38 @@ export function useLLM() {
     setStatus("generating");
     statusRef.current = "generating";
 
-    if (needsCompaction(historyRef.current, contextWindowRef.current)) onCompacting?.();
-    const { history: compacted, compacted: wasCompacted, summary, firstSurvivedOrigIdx } = await compactHistory(historyRef.current, engineRef.current, contextWindowRef.current);
-    if (wasCompacted) {
-      compactStackRef.current.push({
-        history: historyRef.current,
-        entryBatches: entryBatchesRef.current,
-      });
-      historyRef.current = compacted;
-      onCompact?.(summary);
-      // Rebase entryBatchesRef: drop batches that were summarized, shift survivors.
-      // After compaction the kept messages start at index 3 (system + 2 synthetic summary messages).
-      entryBatchesRef.current = entryBatchesRef.current
-        .filter((b) => b.histIdx >= firstSurvivedOrigIdx)
-        .map((b) => ({ ...b, histIdx: b.histIdx - firstSurvivedOrigIdx + 3 }));
-    } else {
-      historyRef.current = compacted;
-      // Clean up compacting entry if compaction didn't end up running
-      onCompact?.(null);
-    }
-
     historyRef.current.push({ role: "user", content: userMessage });
     console.debug("[YCDA] Prompt →", userMessage);
+
+    // Decide whether to extend the summary before generating: if the rolling
+    // window would drop unsummarized content whose tokens exceed
+    // UNSUMMARIZED_COMPACT_RATIO of the prompt budget, fold them in first.
+    {
+      const { firstKeptIdx } = buildPrompt(historyRef.current, summaryRef.current, contextWindowRef.current);
+      const floorIdx = summaryRef.current?.coveredUpTo ?? 1;
+      const droppedTokens = estimateHistoryTokens(historyRef.current.slice(floorIdx, firstKeptIdx));
+      const promptBudget = contextWindowRef.current - GENERATION_BUDGET;
+      if (droppedTokens >= promptBudget * UNSUMMARIZED_COMPACT_RATIO) {
+        onCompacting?.();
+        try {
+          const prevSummary = summaryRef.current;
+          const newText = await extendSummary(
+            historyRef.current,
+            prevSummary?.text ?? null,
+            floorIdx,
+            firstKeptIdx,
+            engineRef.current,
+          );
+          compactStackRef.current.push({ summary: prevSummary });
+          summaryRef.current = { text: newText, coveredUpTo: firstKeptIdx };
+          onCompact?.(newText);
+        } catch (err) {
+          console.error("Summary extension failed — generating without compaction:", err);
+          onCompact?.(null);
+        }
+      }
+    }
+
     onPlaceholder(STREAMING_ENTRY_ID);
 
     cancelledRef.current = false;
@@ -458,9 +468,11 @@ export function useLLM() {
         attempt++;
         let accumulated = "";
 
+        const { messages: promptMessages, usedTokens } = buildPrompt(historyRef.current, summaryRef.current, contextWindowRef.current);
+        console.debug(`[YCDA] Prompt window ~${usedTokens}/${contextWindowRef.current - GENERATION_BUDGET} tok (${promptMessages.length} msgs)`);
         const completion = await engineRef.current.chat.completions.create({
           stream: true,
-          messages: historyRef.current,
+          messages: promptMessages,
           stream_options: { include_usage: true },
           repetition_penalty: 1.1,
           max_tokens: GENERATION_BUDGET,
@@ -521,11 +533,15 @@ export function useLLM() {
   const revertLast = useCallback(() => {
     if (historyRef.current.at(-1)?.role === "assistant") historyRef.current.pop();
     if (historyRef.current.at(-1)?.role === "user")      historyRef.current.pop();
+    if (summaryRef.current && summaryRef.current.coveredUpTo > historyRef.current.length) {
+      summaryRef.current = { ...summaryRef.current, coveredUpTo: historyRef.current.length };
+    }
   }, []);
 
   const setSystemPrompt = useCallback((prompt) => {
     historyRef.current = [{ role: "system", content: prompt }];
     entryBatchesRef.current = [];
+    summaryRef.current = { text: null, coveredUpTo: 1 };
     compactStackRef.current = [];
   }, []);
 
@@ -567,14 +583,17 @@ export function useLLM() {
         ...b,
         histIdx: b.histIdx > histIdx ? b.histIdx - 2 : b.histIdx,
       }));
+      // Keep the summary's coveredUpTo pointing at the right position after the splice.
+      if (summaryRef.current && summaryRef.current.coveredUpTo > histIdx) {
+        summaryRef.current = { ...summaryRef.current, coveredUpTo: summaryRef.current.coveredUpTo - 2 };
+      }
     }
   }, []);
 
   const undoCompaction = useCallback(() => {
     const snapshot = compactStackRef.current.pop();
     if (!snapshot) return false;
-    historyRef.current = snapshot.history;
-    entryBatchesRef.current = snapshot.entryBatches;
+    summaryRef.current = snapshot.summary ?? { text: null, coveredUpTo: 1 };
     return true;
   }, []);
 
@@ -710,11 +729,13 @@ NOTE: <2–3 short sentences (under 50 words total). Start from the existing not
   const getSnapshot = useCallback(() => ({
     history:      historyRef.current,
     entryBatches: entryBatchesRef.current,
+    summary:      summaryRef.current,
   }), []);
 
-  const restoreSnapshot = useCallback(({ history, entryBatches }) => {
+  const restoreSnapshot = useCallback(({ history, entryBatches, summary }) => {
     historyRef.current      = history;
     entryBatchesRef.current = entryBatches;
+    summaryRef.current      = summary ?? { text: null, coveredUpTo: 1 };
     compactStackRef.current = [];
   }, []);
 

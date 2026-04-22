@@ -366,13 +366,13 @@ function App() {
     await saveGame({
       storyId:    activeStory.id,
       storyTitle: activeStory.title,
-      snapshot:   { entries, characters, npcs, scenarios: activeStory.scenarios ?? [], llmHistory: snapshot.history, entryBatches: snapshot.entryBatches },
+      snapshot:   { entries, characters, npcs, scenarios: activeStory.scenarios ?? [], llmHistory: snapshot.history, entryBatches: snapshot.entryBatches, llmSummary: snapshot.summary },
     });
   };
 
   const handleLoadGame = (save) => {
-    const { characters: chars, npcs: savedNpcs, entries: savedEntries, scenarios: savedScenarios, llmHistory, entryBatches } = save.snapshot;
-    restoreSnapshot({ history: llmHistory, entryBatches });
+    const { characters: chars, npcs: savedNpcs, entries: savedEntries, scenarios: savedScenarios, llmHistory, entryBatches, llmSummary } = save.snapshot;
+    restoreSnapshot({ history: llmHistory, entryBatches, summary: llmSummary });
     setRoster([...chars.map((c) => c.name), ...savedNpcs.map((n) => n.name)]);
     setActiveStory({ id: save.storyId, title: save.storyTitle, scenarios: savedScenarios ?? [] });
     setCharacters(chars);
@@ -586,7 +586,7 @@ function App() {
               onRemoveLast={handleRemoveLast}
               onCancel={cancel}
               onScenario={(scenario) => {
-                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "scenario", text: scenario.label }]);
+                setEntries((prev) => [...prev, { id: Date.now(), type: "story", source: "scenario", text: scenario.label, description: scenario.prompt }]);
                 callGenerate(scenario.prompt);
               }}
               canRerun={!!lastRun && isLLMReady}
