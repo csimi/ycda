@@ -36,7 +36,8 @@
       "avatar": "🧔",
       "gender": "Male",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "A wall of muscle with a dry sense of humour and a deep distrust of magic. He has survived things he doesn't talk about and carries the quiet authority of someone who has watched companions die before."
     },
     {
       "id": 3,
@@ -45,7 +46,8 @@
       "avatar": "🧙",
       "gender": "Female",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Sharp-tongued and exacting, with more power than she lets on and more patience than she shows. She joined this expedition for reasons she keeps revising. Her spells are elegant; her temper is not."
     }
   ],
   "npcs": [

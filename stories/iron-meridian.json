@@ -36,7 +36,8 @@
       "avatar": "🛡️",
       "gender": "Male",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Blunt and dependable — absorbs punishment and keeps moving. He doesn't complain about orders, only results, and has never once been the first to fall back. Something happened on a previous deployment he won't name."
     },
     {
       "id": 3,
@@ -45,7 +46,8 @@
       "avatar": "📡",
       "gender": "Female",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Fast-thinking and fast-talking, with a gift for finding what doesn't want to be found. She's been in more tight spots than she admits and has the scars to prove it isn't luck."
     }
   ],
   "npcs": [

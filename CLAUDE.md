@@ -32,7 +32,7 @@ src/
     StorySelect.jsx         # Story library screen shown before game starts; upload + saves sections
     StorySetup.jsx          # Pre-game character customization form (shown when story.setup is defined)
     SavesDialog.jsx         # Save / load dialog (used from both StorySelect and in-game)
-    CharacterPanel.jsx      # Left sidebar: party + NPC cards
+    CharacterPanel.jsx      # Left sidebar: party + NPC cards; NPC cards have a hover refresh button to update their profile via AI
     StoryPanel.jsx          # Scrollable story feed
     StoryEntry.jsx          # Renders a single entry (story / say / do / player note / continue / compact)
     InputBar.jsx            # Bottom bar: Continue, Re-run, Remove Last, Cancel, mode toggle, text input
@@ -79,7 +79,8 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
       "class": "Ranger",
       "avatar": "🧝",        // emoji
       "gender": "Female",    // optional, shown as pill
-      "isPlayer": true       // exactly one character must be true
+      "isPlayer": true,      // exactly one character must be true
+      "description": "..."   // optional; shown in CharacterPanel and injected into the system prompt as permanent (AI cannot overwrite it)
     }
   ],
   "npcs": [
@@ -90,7 +91,7 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
       "avatar": "👩",
       "gender": "Female",          // optional
       "disposition": "friendly",   // friendly | neutral | hostile
-      "note": "One-sentence note."
+      "note": "2–3 sentence note: personality, secrets, motivations, attitude toward the player."
     }
   ],
   "entries": [
@@ -114,6 +115,7 @@ Stored in `stories/*.json`. Any file dropped there appears on the selection scre
 | `story`   | `"continue"` | Slim horizontal divider with `▶ continue` label |
 | `story`   | `"compacting"` | Spinner divider shown while context compaction is running |
 | `story`   | `"compact"`  | Dimmed summary card inserted after context compaction |
+| `story`   | `"character_update"` | Teal divider with tooltip popup showing NPC profile diff; undoable via Remove Last |
 | `say`     | —            | Indigo speech bubble, left-aligned |
 | `do`      | —            | Green action bubble, left-aligned, italic |
 
@@ -192,6 +194,9 @@ const {
 - **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
 - **`undoCompaction()`** — pops the most recent pre-compaction snapshot from `compactStackRef` and restores `historyRef` and `entryBatchesRef`. Returns `true` if a snapshot existed. Supports multiple consecutive undos when compaction has run more than once. Called by "Remove Last" when it hits a compact entry.
 - **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
+- **`updateNpcProfile(npc, interactionLog, { onDone, onError })`** — queries the LLM to update a single NPC's `role`, `disposition`, and `note`. Uses a minimal task-specific system message (NOT the full GM system prompt) and the interaction log only; the log is trimmed from the oldest line until the payload fits within `contextWindow - NPC_UPDATE_OUTPUT_BUDGET` (256 tokens reserved for output). The request passes `max_tokens: NPC_UPDATE_OUTPUT_BUDGET` so web-llm stops cleanly. The prompt includes the current profile and instructs the model to **evolve** it — preserving established personality, secrets, and motivations that are still true and only revising what interactions have changed — rather than rewriting from scratch. NOTE is capped at 2–3 short sentences (<50 words) so the model self-limits before the token cap. Calls `onDone({ role, disposition, note })` on success. Sets status to `"initializing"` while running. App snapshots `getSystemPromptLength()` before calling `appendToSystemPrompt`, then pushes a `source: "character_update"` entry storing `prevNpc`, `updated`, and `systemPromptLength` for undo.
+- **`getSystemPromptLength()`** → `number` — returns the current byte length of the system message content. Used to snapshot a restore point before `appendToSystemPrompt`.
+- **`truncateSystemPrompt(length)`** — trims the system message back to `length` characters. Called by "Remove Last" when undoing a `character_update` entry.
 - **`getSnapshot()`** → `{ history, entryBatches }` — serializable snapshot for saving.
 - **`restoreSnapshot({ history, entryBatches })`** — restores a saved snapshot.
 

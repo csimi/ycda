@@ -14,7 +14,7 @@ import TextFormatIcon from "@mui/icons-material/TextFormat";
 import MenuIcon from "@mui/icons-material/Menu";
 import LLMStatusBar from "./LLMStatusBar";
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const closeMenu = () => setMenuAnchor(null);
@@ -77,7 +77,7 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
           </Typography>
         )}
         <Box sx={{ flexGrow: 1 }} />
-        <LLMStatusBar status={llmStatus} loadingPhase={llmLoadingPhase} error={llmError} modelId={llmModelId} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} />
+        <LLMStatusBar status={llmStatus} loadingPhase={llmLoadingPhase} error={llmError} modelId={llmModelId} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} initializingLabel={llmInitializingLabel} />
         {isMobile ? (
           <>
             <Tooltip title="Options">

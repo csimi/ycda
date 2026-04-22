@@ -68,10 +68,11 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot } = useLLM();
+  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
+  const [updatingNpcId, setUpdatingNpcId] = useState(null);
   const pendingPostInitRef = useRef(null);
   // Tracks which AI entry batches introduced which NPCs, so NPC removals
   // can be applied when those entries are removed (re-run, remove-last, etc.)
@@ -317,21 +318,63 @@ function App() {
     });
   };
 
+  const buildInteractionLog = (npc) => {
+    const playerName = characters.find((c) => c.isPlayer)?.name;
+    const npcNameLower = npc.name.toLowerCase();
+    const relevant = entries.filter((e) => {
+      if (e.source === "compact" || e.source === "compacting") return false;
+      if ((e.type === "do" || e.type === "say") && (e.character === playerName || e.character === npc.name)) return true;
+      if (e.type === "story" && e.text?.toLowerCase().includes(npcNameLower)) return true;
+      return false;
+    }).slice(-40);
+    return relevant.map((e) => {
+      if (e.type === "say") return `${e.character} says: "${e.text}"`;
+      if (e.type === "do")  return `${e.character}: ${e.text}`;
+      return `Narrator: ${e.text}`;
+    }).join("\n");
+  };
+
+  const handleUpdateNpc = (npc) => {
+    if (!isLLMReady) return;
+    setUpdatingNpcId(npc.id);
+    updateNpcProfile(npc, buildInteractionLog(npc), {
+      onDone: (updated) => {
+        const prevNpc = { role: npc.role, disposition: npc.disposition, note: npc.note };
+        const systemPromptLength = getSystemPromptLength();
+        appendToSystemPrompt(`\n\n[CHARACTER UPDATE — ${npc.name}]: role=${updated.role}, disposition=${updated.disposition}. ${updated.note}`);
+        setNpcs((prev) => prev.map((n) => (n.id === npc.id ? { ...n, ...updated } : n)));
+        setEntries((prev) => [...prev, {
+          id: Date.now(),
+          type: "story",
+          source: "character_update",
+          npcId: npc.id,
+          npcName: npc.name,
+          npcAvatar: npc.avatar,
+          prevNpc,
+          updated,
+          systemPromptLength,
+        }]);
+        setUpdatingNpcId(null);
+      },
+      onError: () => setUpdatingNpcId(null),
+    });
+  };
+
   const handleSaveGame = async () => {
     if (!activeStory) return;
     const snapshot = getSnapshot();
     await saveGame({
       storyId:    activeStory.id,
       storyTitle: activeStory.title,
-      snapshot:   { entries, characters, npcs, llmHistory: snapshot.history, entryBatches: snapshot.entryBatches },
+      snapshot:   { entries, characters, npcs, scenarios: activeStory.scenarios ?? [], llmHistory: snapshot.history, entryBatches: snapshot.entryBatches },
     });
   };
 
   const handleLoadGame = (save) => {
-    const { characters: chars, npcs: savedNpcs, entries: savedEntries, llmHistory, entryBatches } = save.snapshot;
+    const { characters: chars, npcs: savedNpcs, entries: savedEntries, scenarios: savedScenarios, llmHistory, entryBatches } = save.snapshot;
     restoreSnapshot({ history: llmHistory, entryBatches });
     setRoster([...chars.map((c) => c.name), ...savedNpcs.map((n) => n.name)]);
-    setActiveStory({ id: save.storyId, title: save.storyTitle });
+    setActiveStory({ id: save.storyId, title: save.storyTitle, scenarios: savedScenarios ?? [] });
     setCharacters(chars);
     setNpcs(savedNpcs);
     setEntries(savedEntries);
@@ -370,6 +413,11 @@ function App() {
       const last = prev[prev.length - 1];
       if (last.source === "compact") {
         undoCompaction();
+        return prev.slice(0, -1);
+      }
+      if (last.source === "character_update") {
+        setNpcs((npcs) => npcs.map((n) => n.id === last.npcId ? { ...n, ...last.prevNpc } : n));
+        truncateSystemPrompt(last.systemPromptLength);
         return prev.slice(0, -1);
       }
       pruneEntries([last.id]);
@@ -479,6 +527,7 @@ function App() {
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
+          llmInitializingLabel={updatingNpcId ? "Updating character…" : undefined}
           storyTitle={activeStory.title}
           onHome={() => setActiveStory(null)}
           pregenerationEnabled={pregenerationEnabled}
@@ -494,7 +543,7 @@ function App() {
 
         {/* Main layout */}
         <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden", position: "relative" }}>
-          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} isMobile={isMobile} open={!isMobile || sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <CharacterPanel isDark={isDark} npcs={npcs} characters={characters} isMobile={isMobile} open={!isMobile || sidebarOpen} onClose={() => setSidebarOpen(false)} onUpdateNpc={handleUpdateNpc} updatingNpcId={updatingNpcId} isLLMReady={isLLMReady} />
 
           {isMobile && (
             <Box

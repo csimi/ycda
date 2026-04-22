@@ -62,11 +62,6 @@ Create a JSON file in `stories/` following this schema:
   "title": "Story Title",
   "description": "One-paragraph blurb shown on the selection screen.",
 
-  // Optional: quick-action buttons shown in the input bar during play
-  "scenarios": [
-    { "id": "s1", "label": "Short label", "icon": "⚔️", "prompt": "Full prompt sent to the LLM when this card is tapped." }
-  ],
-
   // Optional: show a character setup form before starting
   "setup": [
     { "field": "name",       "label": "Your character's name" },
@@ -80,7 +75,8 @@ Create a JSON file in `stories/` following this schema:
       "class": "Ranger",
       "avatar": "🧝",
       "gender": "Female",
-      "isPlayer": true       // exactly one character must be true
+      "isPlayer": true,      // exactly one character must be true
+      "description": "..."   // optional; shown in the sidebar and injected into the system prompt as permanent (AI cannot overwrite it)
     }
   ],
   "npcs": [
@@ -97,6 +93,11 @@ Create a JSON file in `stories/` following this schema:
   "entries": [
     // ${field} placeholders are replaced with setup answers at story start
     { "id": 1, "type": "story", "text": "Welcome, ${name}. The adventure begins..." }
+  ],
+
+  // Optional: quick-action buttons shown in the input bar during play
+  "scenarios": [
+    { "id": "s1", "label": "Short label", "icon": "⚔️", "prompt": "Full prompt sent to the LLM when this card is tapped." }
   ]
 }
 ```

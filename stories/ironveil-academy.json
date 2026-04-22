@@ -35,7 +35,8 @@
       "avatar": "💪",
       "gender": "Male",
       "isPlayer": false,
-      "disposition": "neutral"
+      "disposition": "neutral",
+      "description": "Confident to the point of arrogance, but it's mostly earned. He treats the academy's hardest training scenarios as warm-ups and makes it look effortless. He has decided to look after you for reasons that may not be entirely selfless."
     },
     {
       "id": 3,
@@ -44,7 +45,8 @@
       "avatar": "🔮",
       "gender": "Female",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Measured and deliberate — she has already seen how most conversations end before they begin. Being around her is unsettling in a way that's hard to name. She was watching for you before you arrived."
     }
   ],
   "npcs": [

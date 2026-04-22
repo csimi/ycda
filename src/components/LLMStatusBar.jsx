@@ -19,12 +19,12 @@ const STATUS_CONFIG = {
   loading:      { color: "default" },
   ready:        { label: "AI ready",          color: "success" },
   generating:   { label: "Generating…",       color: "info" },
-  initializing: { label: "Preparing story…",  color: "info" },
+  initializing: { label: "Preparing story…",  color: "info" },  // label overridable via initializingLabel prop
   cancelled:    { label: "AI load cancelled", color: "warning" },
   error:        { label: "AI error",           color: "error" },
 };
 
-export default function LLMStatusBar({ status, loadingPhase, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad }) {
+export default function LLMStatusBar({ status, loadingPhase, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad, initializingLabel }) {
   const [anchor, setAnchor] = useState(null);
 
   if (status === "uninitialized") return null;
@@ -33,6 +33,8 @@ export default function LLMStatusBar({ status, loadingPhase, error, modelId, onS
 
   const label = status === "loading"
     ? (loadingPhase === "downloading" ? "Downloading model…" : "Loading AI…")
+    : status === "initializing" && initializingLabel
+    ? initializingLabel
     : cfg.label;
 
   const canSwitch = status === "ready" || status === "cancelled" || status === "error";

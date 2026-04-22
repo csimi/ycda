@@ -38,7 +38,8 @@
       "avatar": "🗡️",
       "gender": "Female",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Graceful and precise, with the quiet authority of someone who has never needed to raise her voice. She tolerated your entry into the sect for reasons she hasn't shared. Her blade is always within reach."
     },
     {
       "id": 3,
@@ -47,7 +48,8 @@
       "avatar": "🧑‍🔬",
       "gender": "Male",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Cheerful and accident-prone, with genuine enthusiasm for pills that shouldn't exist. He has spent three years longer at the sect than you and still hasn't advanced — but he knows every back corridor and which elders to avoid."
     }
   ],
   "npcs": [

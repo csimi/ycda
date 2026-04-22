@@ -1,4 +1,5 @@
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Typography, Chip, IconButton, CircularProgress, Tooltip } from "@mui/material";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
 
 function modeColor(isDark, darkVal, lightVal) {
   return isDark ? darkVal : lightVal;
@@ -24,7 +25,7 @@ function GenderPill({ gender, isDark }) {
 }
 
 function CharacterCard({ character, isDark }) {
-  const { name, class: cls, avatar, gender, isPlayer } = character;
+  const { name, class: cls, avatar, gender, isPlayer, description } = character;
 
   return (
     <Box
@@ -76,14 +77,21 @@ function CharacterCard({ character, isDark }) {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center" }}>
+      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center", mb: description ? 0.5 : 0 }}>
         <GenderPill gender={gender} isDark={isDark} />
       </Box>
+      {description && (
+        <Typography
+          sx={{ fontSize: "0.62rem", color: modeColor(isDark, "rgba(148,163,184,0.7)", "rgba(60,60,80,0.75)"), fontStyle: "italic", lineHeight: 1.4 }}
+        >
+          {description}
+        </Typography>
+      )}
     </Box>
   );
 }
 
-function NpcCard({ npc, isDark, isNew }) {
+function NpcCard({ npc, isDark, isNew, onUpdate, isUpdating, canUpdate }) {
   const { name, role, avatar, gender, note } = npc;
 
   return (
@@ -92,14 +100,40 @@ function NpcCard({ npc, isDark, isNew }) {
         mb: 1.2,
         p: 1,
         borderRadius: 2,
+        position: "relative",
         bgcolor: isNew
           ? modeColor(isDark, "rgba(99,102,241,0.1)", "rgba(99,102,241,0.07)")
           : modeColor(isDark, "rgba(255,255,255,0.03)", "rgba(0,0,0,0.03)"),
         border: isNew
           ? `1px solid ${modeColor(isDark, "rgba(99,102,241,0.4)", "rgba(99,102,241,0.3)")}`
           : `1px solid ${modeColor(isDark, "rgba(255,255,255,0.06)", "rgba(0,0,0,0.08)")}`,
+        "&:hover .npc-update-btn": { opacity: 1 },
       }}
     >
+      <Tooltip title="Update profile from story" placement="left" arrow>
+        <span style={{ position: "absolute", top: 4, right: 4 }}>
+          <IconButton
+            className="npc-update-btn"
+            size="small"
+            disabled={!canUpdate || isUpdating}
+            onClick={() => onUpdate?.(npc)}
+            sx={{
+              width: 20,
+              height: 20,
+              opacity: isUpdating ? 1 : 0,
+              transition: "opacity 0.15s",
+              color: modeColor(isDark, "rgba(148,163,184,0.8)", "rgba(100,116,139,0.8)"),
+              "&:hover": { color: "primary.main", bgcolor: "transparent" },
+              "&.Mui-disabled": { opacity: 0.3 },
+            }}
+          >
+            {isUpdating
+              ? <CircularProgress size={12} color="inherit" />
+              : <AutorenewIcon sx={{ fontSize: 14 }} />}
+          </IconButton>
+        </span>
+      </Tooltip>
+
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 0.5 }}>
         <Typography sx={{ fontSize: "1.3rem", lineHeight: 1 }}>
           {avatar}
@@ -144,7 +178,7 @@ function SectionHeader({ label, isDark }) {
   );
 }
 
-export default function CharacterPanel({ isDark, npcs, characters, isMobile = false, open = true, onClose }) {
+export default function CharacterPanel({ isDark, npcs, characters, isMobile = false, open = true, onClose, onUpdateNpc, updatingNpcId, isLLMReady }) {
   const panelBg = modeColor(isDark, "#0f1117", "#f8f7f4");
   const panelBorder = modeColor(isDark, "rgba(255,255,255,0.08)", "rgba(0,0,0,0.1)");
   const initialNpcIds = new Set(npcs.filter((n) => Number.isInteger(n.id)).map((n) => n.id));
@@ -193,7 +227,15 @@ export default function CharacterPanel({ isDark, npcs, characters, isMobile = fa
       <SectionHeader label="Characters" isDark={isDark} />
       <Box sx={{ p: 1.2 }}>
         {npcs.map((n) => (
-          <NpcCard key={n.id} npc={n} isDark={isDark} isNew={!initialNpcIds.has(n.id)} />
+          <NpcCard
+            key={n.id}
+            npc={n}
+            isDark={isDark}
+            isNew={!initialNpcIds.has(n.id)}
+            onUpdate={onUpdateNpc}
+            isUpdating={updatingNpcId === n.id}
+            canUpdate={isLLMReady && !updatingNpcId}
+          />
         ))}
       </Box>
       </Box>

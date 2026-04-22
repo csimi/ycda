@@ -6,6 +6,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import CompressIcon from "@mui/icons-material/Compress";
 import MovieIcon from "@mui/icons-material/Movie";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 
 const typeConfig = {
   story: {
@@ -119,6 +120,39 @@ export default function StoryEntry({ entry, isDark, isPlayer }) {
         </Box>
         <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
       </Box>
+    );
+  }
+
+  if (entry.type === "story" && entry.source === "character_update") {
+    const color = isDark ? "rgba(20,184,166,0.5)" : "rgba(15,118,110,0.6)";
+    const lineColor = isDark ? "rgba(20,184,166,0.12)" : "rgba(15,118,110,0.12)";
+    const { prevNpc, updated, npcName, npcAvatar } = entry;
+    const diffLines = [];
+    if (prevNpc.role !== updated.role)
+      diffLines.push(`Role: ${prevNpc.role || "—"} → ${updated.role}`);
+    if (prevNpc.disposition !== updated.disposition)
+      diffLines.push(`Disposition: ${prevNpc.disposition || "—"} → ${updated.disposition}`);
+    if (prevNpc.note !== updated.note) {
+      diffLines.push(`Note (before):\n${prevNpc.note || "—"}`);
+      diffLines.push(`Note (after):\n${updated.note}`);
+    }
+    const tooltipContent = diffLines.length ? diffLines.join("\n\n") : "No changes detected.";
+    const inner = (
+      <Box sx={{ px: 3, py: 0.5, display: "flex", alignItems: "center", gap: 1, cursor: "help" }}>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, color }}>
+          <ManageAccountsIcon sx={{ fontSize: 11 }} />
+          <Typography sx={{ fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+            {npcAvatar ? `${npcAvatar} ` : ""}{npcName} — profile updated
+          </Typography>
+        </Box>
+        <Box sx={{ flexGrow: 1, height: "1px", bgcolor: lineColor }} />
+      </Box>
+    );
+    return (
+      <Tooltip title={tooltipContent} placement="top" arrow slotProps={{ tooltip: { sx: { maxWidth: 380, whiteSpace: "pre-wrap" } } }}>
+        <span>{inner}</span>
+      </Tooltip>
     );
   }
 

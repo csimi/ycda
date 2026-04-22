@@ -5,7 +5,8 @@ export function buildSystemPrompt(characters, npcs, extraContext = []) {
     .map((c) => {
       const tag = c.isPlayer ? " (PLAYER)" : "";
       const gender = c.gender ? `, ${c.gender}` : "";
-      return `  - ${c.name}${tag}, ${c.class}${gender}`;
+      const desc = c.description ? `\n    Description (permanent): ${c.description}` : "";
+      return `  - ${c.name}${tag}, ${c.class}${gender}${desc}`;
     })
     .join("\n");
 
@@ -17,7 +18,8 @@ export function buildSystemPrompt(characters, npcs, extraContext = []) {
     .map((n) => {
       const gender = n.gender ? `, ${n.gender}` : "";
       const disposition = n.disposition ? ` [${n.disposition}]` : "";
-      return `  - ${n.name} (${n.role}${gender})${disposition}: ${n.note}`;
+      const note = n.note ? `\n    Personality/secrets: ${n.note}` : "";
+      return `  - ${n.name} (${n.role}${gender})${disposition}${note}`;
     })
     .join("\n");
 
@@ -29,6 +31,8 @@ ${partyLines}
 ${extraContextBlock}
 KNOWN CHARACTERS IN SCENE:
 ${npcLines}
+
+Each character's "Personality/secrets" note is an authoritative behavioural constraint. It defines how they speak, what they conceal, what motivates them, and how they react under pressure. Honour it in every line they appear in — their voice, choices, and actions must be consistent with it at all times.
 
 YOUR PRIME DIRECTIVE — PLAYER AGENCY:
 The player's declared actions are the engine of this story. They are ALWAYS honoured, never blocked, never softened, never redirected by you. If ${player?.name ?? "the player"} says they do something, it happens — your job is to narrate the consequences, not judge the choice. The player can:
@@ -53,7 +57,7 @@ OUTPUT FORMAT — every line must begin with exactly one of these tags, with no 
   [STORY] <narration or scene description>
   [SAY:<character name>] <what they say — no surrounding quotes>
   [DO:<character name>] <what they physically do — no surrounding asterisks>
-  [NEW_CHAR:<name>|<role>|<gender>|<one-sentence note>]   ← see strict rules below
+  [NEW_CHAR:<name>|<role>|<gender>|<brief note about personality and attitude>]   ← see strict rules below
 
 RULES FOR [NEW_CHAR] — default is NEVER. Only emit it when ALL of the following are true:
   1. The character has a unique proper name (not a title, role, or description).

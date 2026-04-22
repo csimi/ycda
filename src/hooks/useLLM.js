@@ -15,6 +15,8 @@ export function isMobileDevice() {
 
 // Tokens reserved for the model's own output
 const GENERATION_BUDGET = 384;
+// Tokens reserved for NPC profile update output (ROLE + DISPOSITION + short NOTE)
+const NPC_UPDATE_OUTPUT_BUDGET = 256;
 // Compact when history exceeds this fraction of available context
 const COMPACTION_RATIO = 0.90;
 // After compaction, fill history to only this fraction — leaves headroom so the
@@ -146,12 +148,12 @@ const REFUSAL_RE = [
 function isRefusal(text) {
   // No valid tags at all → not following the format → treat as refusal
   if (!/^\[(STORY|SAY:|DO:|NEW_CHAR:)/m.test(text)) return true;
-  // Any single line over 600 chars → model is rambling
-  if (text.split("\n").some((l) => l.length > 600)) return true;
   // Only check refusal phrases on lines that are NOT inside a valid tag,
   // so in-story dialogue like "I'm sorry, I cannot allow that" is not flagged.
   const untaggedLines = text.split("\n")
     .filter((l) => l.trim() && !/^\[(STORY|SAY:|DO:|NEW_CHAR:)/i.test(l.trim()));
+  // Untagged lines over 600 chars → model is rambling outside the format
+  if (untaggedLines.some((l) => l.length > 600)) return true;
   return untaggedLines.some((line) => REFUSAL_RE.some((re) => re.test(line)));
 }
 
@@ -631,6 +633,80 @@ export function useLLM() {
     );
   }, []);
 
+  // interactionLog: plain-text excerpt of player↔NPC exchanges extracted by the caller
+  const updateNpcProfile = useCallback(async (npc, interactionLog, callbacks) => {
+    if (statusRef.current !== "ready") return;
+    setStatus("initializing"); statusRef.current = "initializing";
+    try {
+      const systemMessage = `You help maintain character profiles for a text adventure game. Respond ONLY with the three requested lines — no preamble, commentary, or tags.`;
+      const buildPrompt = (log) => {
+        const interactionBlock = log?.trim()
+          ? `\nKey interactions between the player and ${npc.name}:\n${log}\n`
+          : "";
+        return `Evolve ${npc.name}'s character profile to reflect the current story state. Build on the existing profile below — do NOT rewrite it from scratch. Preserve established personality, secrets, and motivations that are still true; only revise or add what the interactions have genuinely changed or revealed.
+${interactionBlock}
+Focus specifically on how the player's actions and words have affected ${npc.name}:
+- What has the player done to or with ${npc.name}?
+- How have those actions shifted ${npc.name}'s trust, fear, respect, or resentment toward the player?
+- What does ${npc.name} now know, suspect, or feel that they didn't before?
+
+Current profile (your starting point — keep what still holds, evolve the rest):
+  Role: ${npc.role}
+  Disposition: ${npc.disposition || "unknown"}
+  Note: ${npc.note || "(none)"}
+
+Respond with ONLY these three lines — no other text:
+ROLE: <almost always repeat the current role verbatim; only change it if the character's fundamental function in the story has truly shifted (e.g. innkeeper → outlaw after fleeing town). Superficial shifts in mood, trust, or plans are NOT role changes — capture those in NOTE instead>
+DISPOSITION: <friendly|neutral|hostile>
+NOTE: <2–3 short sentences (under 50 words total). Start from the existing note above, retain the details that still hold, and integrate new developments from the interactions. Do not discard established traits, secrets, or motivations unless events have contradicted them.>`;
+      };
+
+      const budget = contextWindowRef.current - NPC_UPDATE_OUTPUT_BUDGET;
+      let trimmedLog = interactionLog ?? "";
+      let messages = [
+        { role: "system", content: systemMessage },
+        { role: "user",   content: buildPrompt(trimmedLog) },
+      ];
+      // Trim the interaction log from the top (oldest lines) until the full payload fits
+      while (estimateHistoryTokens(messages) > budget && trimmedLog.includes("\n")) {
+        trimmedLog = trimmedLog.slice(trimmedLog.indexOf("\n") + 1);
+        messages = [
+          { role: "system", content: systemMessage },
+          { role: "user",   content: buildPrompt(trimmedLog) },
+        ];
+      }
+      if (estimateHistoryTokens(messages) > budget) {
+        // Even with an empty log the prompt doesn't fit — drop it entirely
+        messages = [
+          { role: "system", content: systemMessage },
+          { role: "user",   content: buildPrompt("") },
+        ];
+      }
+      console.debug(`[YCDA] NPC profile update prompt (${npc.name}, ~${estimateHistoryTokens(messages)} tok) →`, messages[1].content);
+      const result = await engineRef.current.chat.completions.create({
+        messages,
+        temperature: 0.3,
+        top_p: 0.9,
+        max_tokens: NPC_UPDATE_OUTPUT_BUDGET,
+      });
+      const text = result.choices[0].message.content.trim();
+      console.debug(`[YCDA] NPC profile update (${npc.name}) →`, text);
+      const roleMatch = text.match(/^ROLE:\s*(.+)/m);
+      const dispMatch = text.match(/^DISPOSITION:\s*(.+)/m);
+      const noteMatch = text.match(/^NOTE:\s*(.+)/m);
+      callbacks.onDone({
+        role: roleMatch?.[1]?.trim() || npc.role,
+        disposition: dispMatch?.[1]?.trim().toLowerCase() || npc.disposition,
+        note: noteMatch?.[1]?.trim() || npc.note,
+      });
+    } catch (err) {
+      console.error("NPC profile update failed:", err);
+      callbacks.onError(err);
+    } finally {
+      setStatus("ready"); statusRef.current = "ready";
+    }
+  }, []);
+
   const getSnapshot = useCallback(() => ({
     history:      historyRef.current,
     entryBatches: entryBatchesRef.current,
@@ -642,5 +718,14 @@ export function useLLM() {
     compactStackRef.current = [];
   }, []);
 
-  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot };
+  const getSystemPromptLength = useCallback(() => {
+    return historyRef.current.find((m) => m.role === "system")?.content.length ?? 0;
+  }, []);
+
+  const truncateSystemPrompt = useCallback((length) => {
+    const sysMsg = historyRef.current.find((m) => m.role === "system");
+    if (sysMsg) sysMsg.content = sysMsg.content.slice(0, length);
+  }, []);
+
+  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
 }

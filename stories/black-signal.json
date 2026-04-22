@@ -36,7 +36,8 @@
       "avatar": "🥷",
       "gender": "Female",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Quiet and precise, with the kind of loyalty that doesn't require explaining. She does not ask why — only when and where. Violence is her native language; everything else is translation."
     },
     {
       "id": 3,
@@ -45,7 +46,8 @@
       "avatar": "🧑‍🔬",
       "gender": "Male",
       "isPlayer": false,
-      "disposition": "friendly"
+      "disposition": "friendly",
+      "description": "Brilliant, paranoid, and perpetually sleep-deprived. He argues with his inventions when they fail and takes it personally. His loyalty is to interesting problems, and you are the most interesting problem he has ever encountered."
     }
   ],
   "npcs": [
