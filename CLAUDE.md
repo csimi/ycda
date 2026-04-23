@@ -28,7 +28,7 @@ src/
   index.css
 
   components/
-    AppHeader.jsx           # Top bar: logo, story title, home button, LLM status, save, difficulty selector, pregen toggle, theme toggle
+    AppHeader.jsx           # Top bar: logo, story title, home button, LLM status, save, difficulty selector, theme toggle
     StorySelect.jsx         # Story library screen shown before game starts; upload + saves sections
     StorySetup.jsx          # Pre-game character customization form (shown when story.setup is defined)
     SavesDialog.jsx         # Save / load dialog (used from both StorySelect and in-game)
@@ -145,7 +145,6 @@ npcs                 — NPC array, stateful (grows when AI introduces new chars
 entries              — story feed array
 lastRun              — { userMessage, aiEntryIds: Set } | null  (for Re-run)
 themeMode            — "light" | "dark", persisted to localStorage key "theme"
-pregenerationEnabled — bool, persisted to localStorage key "pregen"
 exploreMode          — bool, persisted to localStorage key "explore"
 difficulty           — "easy" | "medium" | "hard", persisted to localStorage key "difficulty" (default "easy")
 savesDialogOpen      — bool
@@ -166,19 +165,18 @@ const {
   setSystemPrompt, setSystemPromptText, appendToSystemPrompt, seedInitialEntries,
   setRoster, switchModel,
   pruneEntries, undoCompaction,
-  pregenerateContext,
   getSnapshot, restoreSnapshot,
 } = useLLM();
 ```
 
 - **status**: `"uninitialized"` → `"loading"` → `"ready"` ↔ `"generating"` | `"initializing"` | `"cancelled"` | `"error"`
-  - `"initializing"` — narrator briefing pre-generation in progress
+  - `"initializing"` — a side task (e.g. NPC profile update) is running on the engine
   - `"cancelled"` — user aborted model loading via `cancelLoad`; engine has been unloaded
 - **modelId** — the currently loaded model ID string
 - **error** — string message from the most recent failed `loadModel` attempt, or `null`. Cleared at the start of each new load.
 - **`setSystemPrompt(str)`** — seeds `historyRef` with `[{ role: "system", content }]` and resets `entryBatchesRef`.
-- **`setSystemPromptText(str)`** — replaces the system message content in place without resetting history, entry batches, or summary. Used for mid-game difficulty changes, where the app rebuilds the base prompt (via `buildSystemPrompt`) plus any captured pregen briefing and swaps it in.
-- **`appendToSystemPrompt(str)`** — appends text to the existing system message (used by narrator briefing).
+- **`setSystemPromptText(str)`** — replaces the system message content in place without resetting history, entry batches, or summary. Used for mid-game difficulty changes, where the app rebuilds the base prompt (via `buildSystemPrompt`) and swaps it in.
+- **`appendToSystemPrompt(str)`** — appends text to the existing system message (used by `character_update` entries to persist NPC profile changes into the system prompt).
 - **`seedInitialEntries(entries)`** — injects the story's opening entries as an initial user+assistant pair in history so the LLM treats them as its own prior output.
 - **`generate(userMessage, callbacks)`** — compacts history if needed, appends user turn, streams response, retries on refusal. Callbacks:
   - `onPlaceholder(id)` — add `…` entry
@@ -195,7 +193,6 @@ const {
 - **`switchModel(newModelId)`** — persists the choice to localStorage and delegates to `loadModel`. Allowed from `"ready"`, `"cancelled"`, and `"error"` states.
 - **`pruneEntries(removedIds)`** — removes entry IDs from the feed and from LLM history. Full turn removal splices the user+assistant pair; partial removal rebuilds the assistant message from surviving lines.
 - **`undoCompaction()`** — pops the most recent pre-compaction snapshot from `compactStackRef` and restores `summaryRef`. Returns `true` if a snapshot existed. Supports multiple consecutive undos when compaction has run more than once. Called by "Remove Last" when it hits a compact entry.
-- **`pregenerateContext({ description, characters, npcs, extraContext }, { onDone, onError })`** — runs a separate LLM call to produce a narrator briefing, then calls `onDone(briefing)` so the app can `appendToSystemPrompt` it.
 - **`updateNpcProfile(npc, interactionLog, { onDone, onError })`** — queries the LLM to update a single NPC's `role`, `disposition`, and `note`. Uses a minimal task-specific system message (NOT the full GM system prompt) and the interaction log only; the log is trimmed from the oldest line until the payload fits within `contextWindow - NPC_UPDATE_OUTPUT_BUDGET` (256 tokens reserved for output). The request passes `max_tokens: NPC_UPDATE_OUTPUT_BUDGET` so web-llm stops cleanly. The prompt includes the current profile and instructs the model to **evolve** it — preserving established personality, secrets, and motivations that are still true and only revising what interactions have changed — rather than rewriting from scratch. NOTE is capped at 2–3 short sentences (<50 words) so the model self-limits before the token cap. Calls `onDone({ role, disposition, note })` on success. Sets status to `"initializing"` while running. App snapshots `getSystemPromptLength()` before calling `appendToSystemPrompt`, then pushes a `source: "character_update"` entry storing `prevNpc`, `updated`, and `systemPromptLength` for undo.
 - **`getSystemPromptLength()`** → `number` — returns the current byte length of the system message content. Used to snapshot a restore point before `appendToSystemPrompt`.
 - **`truncateSystemPrompt(length)`** — trims the system message back to `length` characters. Called by "Remove Last" when undoing a `character_update` entry.
@@ -267,7 +264,6 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 - **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / cancelled / error; click opens model switcher (allowed from `ready`/`cancelled`/`error`). A ✕ button appears next to the chip while loading and triggers `cancelLoad`. A ↻ button appears in the `cancelled` and `error` states and triggers `retryLoad`. In the `error` state the chip is wrapped in a tooltip showing the exact failure message from web-llm. On detected mobile devices, the model menu shows a warning header and each row is annotated with a green/amber/red dot reflecting its `mobile` flag.
 - **Save icon** — opens `SavesDialog` in "save" mode (in-game only).
 - **Difficulty selector (E / M / H)** — sets the PRIME DIRECTIVE block in the system prompt. Easy (default) = "PLAYER AGENCY" — the world bends around the player. Medium = "NPC AGENCY" — NPCs push back based on their note/role/disposition. Hard = "A LIVING WORLD" — the player is just another person; events unfold regardless. Changing mid-game rebuilds the system prompt in place via `setSystemPromptText` (no history reset). Stored in localStorage key `"difficulty"`. On mobile, exposed as three menu items in the options menu.
-- **AutoAwesome (✨) icon** — toggles narrator briefing (pre-generation). Stored in localStorage key `"pregen"`.
 - **Theme toggle** — light/dark, stored in localStorage key `"theme"`.
 
 ## Adding a new story

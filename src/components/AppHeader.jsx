@@ -8,7 +8,6 @@ import {
 import CheckIcon from "@mui/icons-material/Check";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SaveIcon from "@mui/icons-material/Save";
 import TextIncreaseIcon from "@mui/icons-material/TextIncrease";
 import TextDecreaseIcon from "@mui/icons-material/TextDecrease";
@@ -22,7 +21,7 @@ const DIFFICULTY_LABELS = {
   hard:   { short: "H", name: "Hard",   blurb: "You're just another person in a living world. Events unfold with or without you." },
 };
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, difficulty, onDifficultyChange, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, difficulty, onDifficultyChange, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const closeMenu = () => setMenuAnchor(null);
@@ -123,12 +122,6 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
                   <Divider />
                 </>
               )}
-              {onTogglePregeneration != null && (
-                <MenuItem onClick={() => { onTogglePregeneration(); closeMenu(); }}>
-                  <ListItemIcon><AutoAwesomeIcon fontSize="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }} /></ListItemIcon>
-                  <ListItemText>Narrator briefing: {pregenerationEnabled ? "on" : "off"}</ListItemText>
-                </MenuItem>
-              )}
               {onOpenSaves && (
                 <MenuItem onClick={() => { onOpenSaves(); closeMenu(); }}>
                   <ListItemIcon><SaveIcon fontSize="small" /></ListItemIcon>
@@ -187,26 +180,6 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
                     </ToggleButton>
                   ))}
                 </ToggleButtonGroup>
-              </Tooltip>
-            )}
-            {onTogglePregeneration != null && (
-              <Tooltip
-                title={
-                  <Box>
-                    <Box sx={{ fontWeight: 600, mb: 0.3 }}>
-                      Narrator briefing: {pregenerationEnabled ? "on" : "off"}
-                    </Box>
-                    <Box sx={{ fontSize: "0.75rem", color: "inherit", opacity: 0.85 }}>
-                      When on, the AI reads the story description before you start and writes a private briefing for itself — giving it better atmosphere, character voice, and narrative focus. Adds ~5–10 s at story load.
-                    </Box>
-                  </Box>
-                }
-                arrow
-                placement="bottom-end"
-              >
-                <IconButton onClick={onTogglePregeneration} size="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }}>
-                  <AutoAwesomeIcon fontSize="small" />
-                </IconButton>
               </Tooltip>
             )}
             {onOpenSaves && (

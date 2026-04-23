@@ -54,7 +54,6 @@ function formatUserAction(inputMode, text, characterName) {
 
 function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
-  const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
   const [exploreMode, setExploreMode] = useState(() => localStorage.getItem("explore") === "true");
   const [difficulty, setDifficulty] = useState(() => {
     const stored = localStorage.getItem("difficulty");
@@ -72,7 +71,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
+  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -83,7 +82,6 @@ function App() {
   const npcBatchesRef = useRef([]);
   // Captured so the system prompt can be rebuilt in place when difficulty changes.
   const extraContextRef = useRef([]);
-  const pregenBriefingRef = useRef("");
 
   const theme = useMemo(() => buildTheme(themeMode, fontSerif, fontScale), [themeMode, fontSerif, fontScale]);
   const isDark = themeMode === "dark";
@@ -98,12 +96,6 @@ function App() {
     localStorage.setItem("theme", next);
   };
 
-  const togglePregeneration = () => {
-    const next = !pregenerationEnabled;
-    setPregenerationEnabled(next);
-    localStorage.setItem("pregen", String(next));
-  };
-
   const toggleExploreMode = () => {
     const next = !exploreMode;
     setExploreMode(next);
@@ -116,8 +108,7 @@ function App() {
     setDifficulty(next);
     localStorage.setItem("difficulty", next);
     if (activeStory) {
-      let rebuilt = buildSystemPrompt(characters, npcs, extraContextRef.current, next);
-      if (pregenBriefingRef.current) rebuilt += `\n\nSTORY CONTEXT:\n${pregenBriefingRef.current}`;
+      const rebuilt = buildSystemPrompt(characters, npcs, extraContextRef.current, next);
       setSystemPromptText(rebuilt);
       // Prior character_update entries' stored systemPromptLength offsets point
       // into the old prompt. Strip undo data so "Remove Last" doesn't call
@@ -140,7 +131,7 @@ function App() {
     localStorage.setItem("fontScale", String(next));
   };
 
-  // Run deferred post-init (pregen + seed) once the engine finishes loading.
+  // Run deferred post-init (seed) once the engine finishes loading.
   useEffect(() => {
     if (status === "ready" && pendingPostInitRef.current) {
       const fn = pendingPostInitRef.current;
@@ -183,25 +174,10 @@ function App() {
     setLastRun(null);
     npcBatchesRef.current = [];
     extraContextRef.current = extraContext;
-    pregenBriefingRef.current = "";
     setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext, difficulty));
     setRoster([...chars.map((c) => c.name), ...initialNpcs.map((n) => n.name)]);
 
-    const runPostInit = async () => {
-      if (pregenerationEnabled) {
-        await pregenerateContext(
-          { description: story.description ?? "", characters: chars, npcs: initialNpcs, extraContext },
-          {
-            onDone: (briefing) => {
-              pregenBriefingRef.current = briefing;
-              appendToSystemPrompt(`\n\nSTORY CONTEXT:\n${briefing}`);
-            },
-            onError: (err) => console.warn("[YCDA] Pre-gen failed, continuing without briefing:", err),
-          }
-        );
-      }
-      seedInitialEntries(initialEntries);
-    };
+    const runPostInit = () => seedInitialEntries(initialEntries);
 
     if (status === "ready") {
       runPostInit();
@@ -488,8 +464,6 @@ function App() {
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
-          pregenerationEnabled={pregenerationEnabled}
-          onTogglePregeneration={togglePregeneration}
           uploadedStories={uploadedStories}
           onUploadStory={(story) => setUploadedStories((prev) => { const exists = prev.some((s) => s.id === story.id); return exists ? prev.map((s) => s.id === story.id ? story : s) : [...prev, story]; })}
           saves={saves}
@@ -527,8 +501,6 @@ function App() {
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
-          pregenerationEnabled={pregenerationEnabled}
-          onTogglePregeneration={togglePregeneration}
           isMobile={isMobile}
           fontSerif={fontSerif}
           onToggleFontSerif={toggleFontSerif}
@@ -560,8 +532,6 @@ function App() {
           llmInitializingLabel={updatingNpcId ? "Updating character…" : undefined}
           storyTitle={activeStory.title}
           onHome={() => setActiveStory(null)}
-          pregenerationEnabled={pregenerationEnabled}
-          onTogglePregeneration={togglePregeneration}
           difficulty={difficulty}
           onDifficultyChange={changeDifficulty}
           onOpenSaves={() => { setSavesDialogMode("save"); setSavesDialogOpen(true); }}

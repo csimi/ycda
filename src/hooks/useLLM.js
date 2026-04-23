@@ -272,30 +272,6 @@ function parseNarratorResponse(text, roster = []) {
   return { entries, newChars };
 }
 
-function buildBriefingPayload({ description, characters, npcs, extraContext }) {
-  const lines = [];
-  if (description) lines.push(`Story premise: ${description}`);
-  if (characters?.length) {
-    lines.push("\nParty:");
-    for (const c of characters) {
-      lines.push(`  ${c.name} (${c.class ?? c.role ?? "character"}${c.gender ? `, ${c.gender}` : ""})`);
-    }
-  }
-  if (npcs?.length) {
-    lines.push("\nNPCs:");
-    for (const n of npcs) {
-      lines.push(`  ${n.name} — ${n.role}${n.note ? `. ${n.note}` : ""}`);
-    }
-  }
-  if (extraContext?.length) {
-    lines.push("\nExtra context:");
-    for (const { label, value } of extraContext) {
-      lines.push(`  ${label}: ${value}`);
-    }
-  }
-  return lines.join("\n");
-}
-
 export function useLLM() {
   const [status, setStatus] = useState("uninitialized");
   const [progress, setProgress] = useState(0);
@@ -608,27 +584,6 @@ export function useLLM() {
     return loadModel(newModelId);
   }, [loadModel]);
 
-  const pregenerateContext = useCallback(async ({ description, characters, npcs, extraContext }, callbacks) => {
-    if (statusRef.current !== "ready") return;
-    setStatus("initializing"); statusRef.current = "initializing";
-    try {
-      const result = await engineRef.current.chat.completions.create({
-        messages: [
-          { role: "system", content: "You are a narrator briefing assistant. Produce a compact narrator briefing of 200–250 tokens. The main Narrator already knows the character names, classes, roles, and NPC notes — do NOT restate them. Focus only on: atmosphere and sensory tone, each named character's inner motivation (one line each), the central dramatic tension, and 2–3 world facts not obvious from the premise. Plain prose only — no tags, no bullet points, no character roster." },
-          { role: "user", content: buildBriefingPayload({ description, characters, npcs, extraContext }) },
-        ],
-        temperature: 0.4, top_p: 0.9,
-      });
-      const briefing = result.choices[0].message.content.trim();
-      console.debug("[YCDA] Narrator briefing →", briefing);
-      callbacks.onDone(briefing);
-    } catch (err) {
-      callbacks.onError(err);
-    } finally {
-      setStatus("ready"); statusRef.current = "ready";
-    }
-  }, []);
-
   const appendToSystemPrompt = useCallback((extra) => {
     if (historyRef.current[0]?.role === "system") {
       historyRef.current[0].content += extra;
@@ -757,5 +712,5 @@ NOTE: <2–3 short sentences (under 50 words total). Start from the existing not
     if (sysMsg) sysMsg.content = sysMsg.content.slice(0, length);
   }, []);
 
-  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
+  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
 }

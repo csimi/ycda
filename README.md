@@ -118,7 +118,6 @@ The file appears on the story selection screen automatically on next dev server 
 | **Save / Load** | Click the save icon (💾) in the header |
 | **Switch model** | Click the model chip in the header |
 | **Difficulty (E / M / H)** | Shift the balance of power between the player and the world — see [Difficulty](#difficulty) |
-| **Narrator briefing (✨)** | Toggle pre-generation of a narrator briefing at story start |
 
 ## Difficulty
 
@@ -137,7 +136,6 @@ You can change difficulty mid-story — it rebuilds the system prompt in place o
 - Character names in AI output are fuzzy-matched against the known roster to tolerate minor typos
 - Conversation history is automatically compacted (summarised by the model) when it approaches the 4096-token context limit, keeping sessions going indefinitely
 - Saves are stored in the browser's IndexedDB — no account or server needed
-- The **narrator briefing** feature (✨) runs a second LLM call before the story starts to give the model a private summary of the premise, characters, and tone
 - All processing is client-side — nothing is sent to any server
 
 ## Tech stack

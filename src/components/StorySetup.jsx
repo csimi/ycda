@@ -18,8 +18,6 @@ export default function StorySetup({
   onSwitchModel,
   onCancelLoad,
   onRetryLoad,
-  pregenerationEnabled,
-  onTogglePregeneration,
   isMobile,
   fontSerif,
   onToggleFontSerif,
@@ -53,8 +51,6 @@ export default function StorySetup({
         onSwitchModel={onSwitchModel}
         onCancelLoad={onCancelLoad}
         onRetryLoad={onRetryLoad}
-        pregenerationEnabled={pregenerationEnabled}
-        onTogglePregeneration={onTogglePregeneration}
         isMobile={isMobile}
         fontSerif={fontSerif}
         onToggleFontSerif={onToggleFontSerif}
