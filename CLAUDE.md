@@ -28,7 +28,7 @@ src/
   index.css
 
   components/
-    AppHeader.jsx           # Top bar: logo, story title, home button, LLM status, save, pregen toggle, theme toggle
+    AppHeader.jsx           # Top bar: logo, story title, home button, LLM status, save, difficulty selector, pregen toggle, theme toggle
     StorySelect.jsx         # Story library screen shown before game starts; upload + saves sections
     StorySetup.jsx          # Pre-game character customization form (shown when story.setup is defined)
     SavesDialog.jsx         # Save / load dialog (used from both StorySelect and in-game)
@@ -39,7 +39,7 @@ src/
     LLMStatusBar.jsx        # Model status chip + model switcher dropdown (embedded in AppHeader)
 
   data/
-    systemPrompt.js         # buildSystemPrompt(characters, npcs, extraContext?) → string
+    systemPrompt.js         # buildSystemPrompt(characters, npcs, extraContext?, difficulty?) → string
     stories.js              # import.meta.glob loader for stories/*.json
     characters.js           # Static fallback character/NPC data (not used at runtime)
     story.js                # Static fallback initial entries (not used at runtime)
@@ -147,6 +147,7 @@ lastRun              — { userMessage, aiEntryIds: Set } | null  (for Re-run)
 themeMode            — "light" | "dark", persisted to localStorage key "theme"
 pregenerationEnabled — bool, persisted to localStorage key "pregen"
 exploreMode          — bool, persisted to localStorage key "explore"
+difficulty           — "easy" | "medium" | "hard", persisted to localStorage key "difficulty" (default "easy")
 savesDialogOpen      — bool
 savesDialogMode      — "save" | "load"
 ```
@@ -162,7 +163,7 @@ const {
   status, progress, modelId, error,
   generate, revertLast, cancel,
   cancelLoad, retryLoad,
-  setSystemPrompt, appendToSystemPrompt, seedInitialEntries,
+  setSystemPrompt, setSystemPromptText, appendToSystemPrompt, seedInitialEntries,
   setRoster, switchModel,
   pruneEntries, undoCompaction,
   pregenerateContext,
@@ -176,6 +177,7 @@ const {
 - **modelId** — the currently loaded model ID string
 - **error** — string message from the most recent failed `loadModel` attempt, or `null`. Cleared at the start of each new load.
 - **`setSystemPrompt(str)`** — seeds `historyRef` with `[{ role: "system", content }]` and resets `entryBatchesRef`.
+- **`setSystemPromptText(str)`** — replaces the system message content in place without resetting history, entry batches, or summary. Used for mid-game difficulty changes, where the app rebuilds the base prompt (via `buildSystemPrompt`) plus any captured pregen briefing and swaps it in.
 - **`appendToSystemPrompt(str)`** — appends text to the existing system message (used by narrator briefing).
 - **`seedInitialEntries(entries)`** — injects the story's opening entries as an initial user+assistant pair in history so the LLM treats them as its own prior output.
 - **`generate(userMessage, callbacks)`** — compacts history if needed, appends user turn, streams response, retries on refusal. Callbacks:
@@ -264,6 +266,7 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 - **YCDA logo** — clicking while in-game opens a "Leave story?" confirm dialog; returns to StorySelect.
 - **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / cancelled / error; click opens model switcher (allowed from `ready`/`cancelled`/`error`). A ✕ button appears next to the chip while loading and triggers `cancelLoad`. A ↻ button appears in the `cancelled` and `error` states and triggers `retryLoad`. In the `error` state the chip is wrapped in a tooltip showing the exact failure message from web-llm. On detected mobile devices, the model menu shows a warning header and each row is annotated with a green/amber/red dot reflecting its `mobile` flag.
 - **Save icon** — opens `SavesDialog` in "save" mode (in-game only).
+- **Difficulty selector (E / M / H)** — sets the PRIME DIRECTIVE block in the system prompt. Easy (default) = "PLAYER AGENCY" — the world bends around the player. Medium = "NPC AGENCY" — NPCs push back based on their note/role/disposition. Hard = "A LIVING WORLD" — the player is just another person; events unfold regardless. Changing mid-game rebuilds the system prompt in place via `setSystemPromptText` (no history reset). Stored in localStorage key `"difficulty"`. On mobile, exposed as three menu items in the options menu.
 - **AutoAwesome (✨) icon** — toggles narrator briefing (pre-generation). Stored in localStorage key `"pregen"`.
 - **Theme toggle** — light/dark, stored in localStorage key `"theme"`.
 

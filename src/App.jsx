@@ -56,6 +56,10 @@ function App() {
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme") ?? "light");
   const [pregenerationEnabled, setPregenerationEnabled] = useState(() => localStorage.getItem("pregen") !== "false");
   const [exploreMode, setExploreMode] = useState(() => localStorage.getItem("explore") === "true");
+  const [difficulty, setDifficulty] = useState(() => {
+    const stored = localStorage.getItem("difficulty");
+    return stored === "medium" || stored === "hard" ? stored : "easy";
+  });
   const [fontSerif, setFontSerif] = useState(() => localStorage.getItem("fontSerif") !== "false");
   const [fontScale, setFontScale] = useState(() => {
     const v = parseFloat(localStorage.getItem("fontScale"));
@@ -68,7 +72,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
+  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -77,6 +81,9 @@ function App() {
   // Tracks which AI entry batches introduced which NPCs, so NPC removals
   // can be applied when those entries are removed (re-run, remove-last, etc.)
   const npcBatchesRef = useRef([]);
+  // Captured so the system prompt can be rebuilt in place when difficulty changes.
+  const extraContextRef = useRef([]);
+  const pregenBriefingRef = useRef("");
 
   const theme = useMemo(() => buildTheme(themeMode, fontSerif, fontScale), [themeMode, fontSerif, fontScale]);
   const isDark = themeMode === "dark";
@@ -101,6 +108,24 @@ function App() {
     const next = !exploreMode;
     setExploreMode(next);
     localStorage.setItem("explore", String(next));
+  };
+
+  const changeDifficulty = (next) => {
+    if (next !== "easy" && next !== "medium" && next !== "hard") return;
+    if (next === difficulty) return;
+    setDifficulty(next);
+    localStorage.setItem("difficulty", next);
+    if (activeStory) {
+      let rebuilt = buildSystemPrompt(characters, npcs, extraContextRef.current, next);
+      if (pregenBriefingRef.current) rebuilt += `\n\nSTORY CONTEXT:\n${pregenBriefingRef.current}`;
+      setSystemPromptText(rebuilt);
+      // Prior character_update entries' stored systemPromptLength offsets point
+      // into the old prompt. Strip undo data so "Remove Last" doesn't call
+      // truncateSystemPrompt with a bogus offset. NPC state in `npcs` is preserved.
+      setEntries((prev) => prev.map((entry) => entry.source === "character_update"
+        ? { ...entry, systemPromptLength: undefined, prevNpc: undefined }
+        : entry));
+    }
   };
 
   const toggleFontSerif = () => {
@@ -157,7 +182,9 @@ function App() {
     setNpcs(initialNpcs);
     setLastRun(null);
     npcBatchesRef.current = [];
-    setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext));
+    extraContextRef.current = extraContext;
+    pregenBriefingRef.current = "";
+    setSystemPrompt(buildSystemPrompt(chars, initialNpcs, extraContext, difficulty));
     setRoster([...chars.map((c) => c.name), ...initialNpcs.map((n) => n.name)]);
 
     const runPostInit = async () => {
@@ -165,7 +192,10 @@ function App() {
         await pregenerateContext(
           { description: story.description ?? "", characters: chars, npcs: initialNpcs, extraContext },
           {
-            onDone: (briefing) => appendToSystemPrompt(`\n\nSTORY CONTEXT:\n${briefing}`),
+            onDone: (briefing) => {
+              pregenBriefingRef.current = briefing;
+              appendToSystemPrompt(`\n\nSTORY CONTEXT:\n${briefing}`);
+            },
             onError: (err) => console.warn("[YCDA] Pre-gen failed, continuing without briefing:", err),
           }
         );
@@ -532,6 +562,8 @@ function App() {
           onHome={() => setActiveStory(null)}
           pregenerationEnabled={pregenerationEnabled}
           onTogglePregeneration={togglePregeneration}
+          difficulty={difficulty}
+          onDifficultyChange={changeDifficulty}
           onOpenSaves={() => { setSavesDialogMode("save"); setSavesDialogOpen(true); }}
           isMobile={isMobile}
           fontSerif={fontSerif}

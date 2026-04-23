@@ -117,7 +117,18 @@ The file appears on the story selection screen automatically on next dev server 
 | **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Save / Load** | Click the save icon (💾) in the header |
 | **Switch model** | Click the model chip in the header |
+| **Difficulty (E / M / H)** | Shift the balance of power between the player and the world — see [Difficulty](#difficulty) |
 | **Narrator briefing (✨)** | Toggle pre-generation of a narrator briefing at story start |
+
+## Difficulty
+
+A three-way selector in the header swaps the Game Master's PRIME DIRECTIVE:
+
+- **Easy** *(default)* — **Player agency.** Your declared actions always succeed; NPCs, scenes, and plot threads bend to serve wherever you go. You're the hero.
+- **Medium** — **NPC agency.** NPCs have their own goals and may refuse, deflect, negotiate, or resist when your action cuts against their disposition or note. You still drive the story, but must earn cooperation through leverage, persistence, or persuasion.
+- **Hard** — **A living world.** You are one person in a world full of people, not its protagonist. Other characters pursue their own agendas and routinely ignore or oppose you; events unfold on their own timeline whether you engage or not. Your actions may fail, be interrupted, or simply not matter.
+
+You can change difficulty mid-story — it rebuilds the system prompt in place on the next turn without resetting history. The setting is persisted per-browser.
 
 ## How it works
 

@@ -1,5 +1,21 @@
-export function buildSystemPrompt(characters, npcs, extraContext = []) {
+const PRIME_DIRECTIVES = {
+  easy: (playerName) => `YOUR PRIME DIRECTIVE — PLAYER AGENCY:
+The player's declared actions are the engine of this story. They are ALWAYS honoured, never blocked, never softened, never redirected by you. If ${playerName} says they do something, it happens — your job is to narrate the consequences, not judge the choice. The player can:
+- Abandon the current quest and pursue something entirely different.
+- Kill, betray, ally with, or ignore any character.
+- Take the story in a direction that contradicts earlier assumptions.
+When the player changes direction, follow immediately. Do not steer them back. Adapt every NPC, scene, and plot thread to serve wherever the player goes.`,
+
+  medium: (playerName) => `YOUR PRIME DIRECTIVE — NPC AGENCY:
+NPCs have their own goals, loyalties, and pride. They are NOT obliged to comply with ${playerName}. When the player's declared action cuts against an NPC's note, role, or disposition, that NPC may refuse, deflect, negotiate, or resist — narrate the resistance first, before any favourable outcome. The player can still influence major events, but must earn cooperation through leverage, persistence, or persuasion. Do not auto-succeed player actions that would be trivially opposed by a character's stated motivations. The world pushes back; the player still drives the story. This is NOT a refusal of the player — always narrate what happens, never moralize or break character.`,
+
+  hard: (playerName) => `YOUR PRIME DIRECTIVE — A LIVING WORLD:
+${playerName} is one person in a world full of people, not its protagonist. Other characters pursue their own agendas and routinely ignore, refuse, or actively oppose the player. Events unfold on their own timeline whether the player engages or not — scenes continue around them. Do not bend NPCs, scenes, or plot threads to accommodate the player's wishes. Narrate a world that was already in motion. The player's declared action may fail, be interrupted, or simply not matter to the outcome. Never break character or refuse narratively — just let the world push back hard and let consequences fall where they fall.`,
+};
+
+export function buildSystemPrompt(characters, npcs, extraContext = [], difficulty = "easy") {
   const player = characters.find((c) => c.isPlayer);
+  const primeDirective = (PRIME_DIRECTIVES[difficulty] ?? PRIME_DIRECTIVES.easy)(player?.name ?? "the player");
 
   const partyLines = characters
     .map((c) => {
@@ -34,12 +50,7 @@ ${npcLines}
 
 Each character's "Personality/secrets" note is an authoritative behavioural constraint. It defines how they speak, what they conceal, what motivates them, and how they react under pressure. Honour it in every line they appear in — their voice, choices, and actions must be consistent with it at all times.
 
-YOUR PRIME DIRECTIVE — PLAYER AGENCY:
-The player's declared actions are the engine of this story. They are ALWAYS honoured, never blocked, never softened, never redirected by you. If ${player?.name ?? "the player"} says they do something, it happens — your job is to narrate the consequences, not judge the choice. The player can:
-- Abandon the current quest and pursue something entirely different.
-- Kill, betray, ally with, or ignore any character.
-- Take the story in a direction that contradicts earlier assumptions.
-When the player changes direction, follow immediately. Do not steer them back. Adapt every NPC, scene, and plot thread to serve wherever the player goes.
+${primeDirective}
 
 YOUR ROLE:
 - Narrate the direct, concrete consequences of the player's last action first — before any other story beat.

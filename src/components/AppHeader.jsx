@@ -3,7 +3,9 @@ import {
   Box, Typography, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button,
   Menu, MenuItem, ListItemIcon, ListItemText, Divider,
+  ToggleButton, ToggleButtonGroup,
 } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -14,7 +16,13 @@ import TextFormatIcon from "@mui/icons-material/TextFormat";
 import MenuIcon from "@mui/icons-material/Menu";
 import LLMStatusBar from "./LLMStatusBar";
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
+const DIFFICULTY_LABELS = {
+  easy:   { short: "E", name: "Easy",   blurb: "You're the hero — the world bends around your choices." },
+  medium: { short: "M", name: "Medium", blurb: "NPCs push back. You must earn cooperation through leverage, persistence, or persuasion." },
+  hard:   { short: "H", name: "Hard",   blurb: "You're just another person in a living world. Events unfold with or without you." },
+};
+
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, pregenerationEnabled, onTogglePregeneration, difficulty, onDifficultyChange, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const closeMenu = () => setMenuAnchor(null);
@@ -91,7 +99,30 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
               onClose={closeMenu}
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
+              slotProps={{ paper: { sx: { maxWidth: "min(320px, calc(100vw - 24px))" } } }}
             >
+              {onDifficultyChange && (
+                <>
+                  {["easy", "medium", "hard"].map((key) => (
+                    <MenuItem
+                      key={key}
+                      onClick={() => { onDifficultyChange(key); closeMenu(); }}
+                      selected={difficulty === key}
+                      sx={{ whiteSpace: "normal", alignItems: "flex-start" }}
+                    >
+                      <ListItemIcon sx={{ mt: 0.5 }}>
+                        {difficulty === key ? <CheckIcon fontSize="small" color="primary" /> : <Box sx={{ width: 20 }} />}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`Difficulty: ${DIFFICULTY_LABELS[key].name}`}
+                        secondary={DIFFICULTY_LABELS[key].blurb}
+                        slotProps={{ secondary: { sx: { fontSize: "0.72rem", whiteSpace: "normal" } } }}
+                      />
+                    </MenuItem>
+                  ))}
+                  <Divider />
+                </>
+              )}
               {onTogglePregeneration != null && (
                 <MenuItem onClick={() => { onTogglePregeneration(); closeMenu(); }}>
                   <ListItemIcon><AutoAwesomeIcon fontSize="small" sx={{ color: pregenerationEnabled ? "primary.main" : "text.disabled" }} /></ListItemIcon>
@@ -132,6 +163,32 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
           </>
         ) : (
           <>
+            {onDifficultyChange && (
+              <Tooltip
+                arrow
+                placement="bottom-end"
+                title={
+                  <Box>
+                    <Box sx={{ fontWeight: 600, mb: 0.3 }}>Difficulty: {DIFFICULTY_LABELS[difficulty ?? "easy"].name}</Box>
+                    <Box sx={{ fontSize: "0.75rem", opacity: 0.85 }}>{DIFFICULTY_LABELS[difficulty ?? "easy"].blurb}</Box>
+                  </Box>
+                }
+              >
+                <ToggleButtonGroup
+                  value={difficulty ?? "easy"}
+                  exclusive
+                  onChange={(_, next) => { if (next) onDifficultyChange(next); }}
+                  size="small"
+                  sx={{ mr: 0.5, "& .MuiToggleButton-root": { px: 1, py: 0.2, minWidth: 28, fontWeight: 700, fontSize: "0.75rem", lineHeight: 1, border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.18)"}` } }}
+                >
+                  {["easy", "medium", "hard"].map((key) => (
+                    <ToggleButton key={key} value={key} aria-label={`Difficulty: ${DIFFICULTY_LABELS[key].name}`}>
+                      {DIFFICULTY_LABELS[key].short}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Tooltip>
+            )}
             {onTogglePregeneration != null && (
               <Tooltip
                 title={

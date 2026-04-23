@@ -635,6 +635,15 @@ export function useLLM() {
     }
   }, []);
 
+  // Replace the system message content in place without resetting history.
+  // Used for mid-game difficulty changes where the base prompt must be rebuilt
+  // while preserving the rolling window, summary, and entry batches.
+  const setSystemPromptText = useCallback((text) => {
+    if (historyRef.current[0]?.role === "system") {
+      historyRef.current[0].content = text;
+    }
+  }, []);
+
   // Seed history with the story's static opening entries so the LLM treats them
   // as its own prior output and maintains continuity from turn one.
   const seedInitialEntries = useCallback((entries) => {
@@ -748,5 +757,5 @@ NOTE: <2–3 short sentences (under 50 words total). Start from the existing not
     if (sysMsg) sysMsg.content = sysMsg.content.slice(0, length);
   }, []);
 
-  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
+  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, pregenerateContext, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
 }
