@@ -21,7 +21,7 @@ const DIFFICULTY_LABELS = {
   hard:   { short: "H", name: "Hard",   blurb: "You're just another person in a living world. Events unfold with or without you." },
 };
 
-export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, storyTitle, onHome, difficulty, onDifficultyChange, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
+export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgress, llmLoadingPhase, llmModelId, llmError, onSwitchModel, onCancelLoad, onRetryLoad, llmInitializingLabel, customConfig, onSaveCustomConfig, storyTitle, onHome, difficulty, onDifficultyChange, onOpenSaves, isMobile, fontSerif, onToggleFontSerif, fontScale, onIncreaseFontSize, onDecreaseFontSize }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const closeMenu = () => setMenuAnchor(null);
@@ -84,7 +84,7 @@ export default function AppHeader({ isDark, onToggleTheme, llmStatus, llmProgres
           </Typography>
         )}
         <Box sx={{ flexGrow: 1 }} />
-        <LLMStatusBar status={llmStatus} loadingPhase={llmLoadingPhase} error={llmError} modelId={llmModelId} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} initializingLabel={llmInitializingLabel} />
+        <LLMStatusBar status={llmStatus} loadingPhase={llmLoadingPhase} error={llmError} modelId={llmModelId} onSwitchModel={onSwitchModel} onCancelLoad={onCancelLoad} onRetryLoad={onRetryLoad} initializingLabel={llmInitializingLabel} customConfig={customConfig} onSaveCustomConfig={onSaveCustomConfig} />
         {isMobile ? (
           <>
             <Tooltip title="Options">

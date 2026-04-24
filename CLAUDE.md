@@ -37,6 +37,10 @@ src/
     StoryEntry.jsx          # Renders a single entry (story / say / do / player note / continue / compact)
     InputBar.jsx            # Bottom bar: Continue, Re-run, Remove Last, Cancel, mode toggle, text input
     LLMStatusBar.jsx        # Model status chip + model switcher dropdown (embedded in AppHeader)
+    CustomApiDialog.jsx     # Config dialog for the "Custom API…" option (base URL, API key, model, context size)
+
+  lib/
+    openaiEngine.js         # Thin OpenAI-compatible adapter; exposes the web-llm engine subset useLLM.js calls
 
   data/
     systemPrompt.js         # buildSystemPrompt(characters, npcs, extraContext?, difficulty?) → string
@@ -239,6 +243,38 @@ Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`). Each entry has a `mob
 
 `isMobileDevice()` (UA-based, also exported from `useLLM.js`) is used by `getInitialModelId` to pick the mobile default when no `modelId` is in localStorage.
 
+### Custom OpenAI-compatible endpoint
+
+At the bottom of the model dropdown is a **Custom API…** option. Selecting it opens `CustomApiDialog` where the user enters:
+
+- **Base URL** — e.g. `https://api.openai.com/v1`, `http://localhost:1234/v1`, `http://localhost:11434/v1`. Joined with `chat/completions` via the `URL` constructor in `src/lib/openaiEngine.js`.
+- **API key** — sent as `Authorization: Bearer <key>`. Stored in localStorage under `customModelConfig`.
+- **Model name** — passed through as the `model` field in the request body.
+- **Context size** — user-provided; written to `contextWindowRef` and drives the existing `buildPrompt` rolling window and the `UNSUMMARIZED_COMPACT_RATIO` compaction trigger. No other logic changes — the adapter is a pass-through.
+- **Disable reasoning tokens** — checkbox; when enabled, the adapter adds `reasoning_effort: "none"` to every request body. Required for Ollama reasoning models (e.g. `gemma4:26b`), which otherwise emit `delta.reasoning` tokens that consume the `GENERATION_BUDGET` before any `delta.content` appears — resulting in an empty streamed response and a silent refusal-retry loop. Ollama's OpenAI-compat endpoint honors `reasoning_effort: "none"`; its `think: false` native flag is NOT passed through.
+
+The dialog also has a **Use Docker setup** button that fills in the preset for the bundled `docker-compose.yml` (base URL `http://localhost:11434/v1`, api key `ollama`, model `gemma4:26b`, context `4096`, disable reasoning on).
+
+Sentinel id: `CUSTOM_MODEL_ID = "__custom_openai__"` (exported from `useLLM.js`). When this id is active, `engineRef.current` points at the object returned by `createOpenAIEngine({ baseURL, apiKey, model, disableThinking })`, which exposes the web-llm engine subset `useLLM.js` calls (`chat.completions.create`, `getMessage`, `interruptGenerate`, `unload`, `setInitProgressCallback`, `reload`). Streaming is implemented by parsing SSE `data: {...}` / `data: [DONE]` lines into the same chunk shape web-llm emits, so the streaming loop, the summary call, and the NPC-profile-update call all work unchanged.
+
+The web-llm worker is always created at mount (cheap — no model loaded until a web-llm model is selected). Switching between modes:
+- web-llm → custom: `webllmEngineRef.current.unload()` frees GPU; adapter is created.
+- custom → web-llm: any in-flight fetch is aborted via `AbortController`; `engine.reload(id)` is called.
+
+Status-bar chip shows `Custom: <model>` when ready. `cancelLoad` is a no-op for the custom endpoint (there's no download phase). `cancel` mid-generation aborts the in-flight fetch.
+
+CORS / browser access:
+- Anthropic — the adapter sends `anthropic-dangerous-direct-browser-access: true` **only when the base URL's hostname is `api.anthropic.com`**, which is Claude's documented opt-in for browser-origin requests. Use `https://api.anthropic.com/v1/` as the base URL against Claude's OpenAI-compatible endpoint; `Authorization: Bearer <anthropic-key>` is sent as with any other provider.
+- OpenAI — `api.openai.com` serves permissive CORS headers, so browser calls work with no extra client-side dance. The OpenAI SDK's `dangerouslyAllowBrowser: true` is an **SDK-level** guard (it suppresses the SDK's own `throw` in a browser environment); it isn't relevant here since we use raw `fetch`, not the SDK. The real concern is key exposure, not transport.
+- Local servers (LM Studio, Ollama with `OLLAMA_ORIGINS=*`) work out of the box.
+
+The Anthropic header is gated by hostname because strict CORS implementations reject any request header not listed in the server's `Access-Control-Allow-Headers` preflight response — sending it unconditionally breaks those endpoints.
+
+### localStorage keys used by the LLM layer
+
+- `modelId` — selected model id (an `AVAILABLE_MODELS.id` or `CUSTOM_MODEL_ID`).
+- `customModelConfig` — JSON `{ baseURL, apiKey, model, contextWindow, disableThinking }` for the custom endpoint.
+
 ## Save / load system
 
 Saves are persisted in IndexedDB (`ycda-saves` database, `saves` object store).
@@ -261,7 +297,7 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 ## AppHeader controls
 
 - **YCDA logo** — clicking while in-game opens a "Leave story?" confirm dialog; returns to StorySelect.
-- **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / cancelled / error; click opens model switcher (allowed from `ready`/`cancelled`/`error`). A ✕ button appears next to the chip while loading and triggers `cancelLoad`. A ↻ button appears in the `cancelled` and `error` states and triggers `retryLoad`. In the `error` state the chip is wrapped in a tooltip showing the exact failure message from web-llm. On detected mobile devices, the model menu shows a warning header and each row is annotated with a green/amber/red dot reflecting its `mobile` flag.
+- **LLMStatusBar chip** — shows loading progress bar / model name / generating spinner / cancelled / error; click opens model switcher (allowed from `ready`/`cancelled`/`error`). When the custom OpenAI-compatible endpoint is active and ready, the chip label reads `Custom: <model>` instead of `AI ready`. A ✕ button appears next to the chip while loading and triggers `cancelLoad`. A ↻ button appears in the `cancelled` and `error` states and triggers `retryLoad`. In the `error` state the chip is wrapped in a tooltip showing the exact failure message from web-llm. On detected mobile devices, the model menu shows a warning header and each row is annotated with a green/amber/red dot reflecting its `mobile` flag. At the bottom of the dropdown (below a divider) is a **Custom API…** entry that opens `CustomApiDialog` — see "Custom OpenAI-compatible endpoint" above.
 - **Save icon** — opens `SavesDialog` in "save" mode (in-game only).
 - **Difficulty selector (E / M / H)** — sets the PRIME DIRECTIVE block in the system prompt. Easy (default) = "PLAYER AGENCY" — the world bends around the player. Medium = "NPC AGENCY" — NPCs push back based on their note/role/disposition. Hard = "A LIVING WORLD" — the player is just another person; events unfold regardless. Changing mid-game rebuilds the system prompt in place via `setSystemPromptText` (no history reset). Stored in localStorage key `"difficulty"`. On mobile, exposed as three menu items in the options menu.
 - **Theme toggle** — light/dark, stored in localStorage key `"theme"`.
@@ -275,5 +311,5 @@ Each save record: `{ id, storyId, storyTitle, savedAt, previewText, snapshot }` 
 ## Known constraints
 
 - LLM runs on the main thread (not a Worker). The UI may stutter during heavy generation on low-end GPUs.
-- Context window is 4096 tokens for all available models. The rolling prompt window fills the budget every turn; compaction fires when about-to-drop unsummarized tokens exceed 25% of the prompt budget.
+- Context window is 4096 tokens for all built-in models; the custom OpenAI-compatible endpoint uses whatever size the user configured. The rolling prompt window fills the budget every turn; compaction fires when about-to-drop unsummarized tokens exceed 25% of the prompt budget.
 - All debug output uses `console.debug` with the `[YCDA]` prefix: prompt, raw response, parsed entries, new characters, compaction summaries.

@@ -48,6 +48,19 @@ The model is selected in-app via the AI status chip in the header. Weights are d
 
 The 8B models require ~6 GB of available GPU memory. If generation stalls or the page crashes, switch to a smaller model.
 
+### Custom OpenAI-compatible endpoint
+
+At the bottom of the model dropdown is a **Custom API…** entry. Clicking it opens a dialog where you can enter a base URL, API key, model name, and context size for any OpenAI-compatible Chat Completions endpoint — local servers like [LM Studio](https://lmstudio.ai/), [Ollama](https://ollama.com/) (with `OLLAMA_ORIGINS=*`), or a hosted provider that allows browser-origin calls. The context size you enter drives the same rolling prompt window and compaction trigger used by the built-in models.
+
+The config is stored in your browser's localStorage (`customModelConfig`). Streaming, cancellation, NPC profile updates, and context compaction all work against the remote endpoint unchanged.
+
+Browser access:
+- **Claude (Anthropic)** — point the base URL at `https://api.anthropic.com/v1/`. The adapter sends `anthropic-dangerous-direct-browser-access: true` automatically when the hostname is `api.anthropic.com`, which is Anthropic's documented opt-in for browser calls. It's gated by hostname because other endpoints' CORS preflight will reject the unknown header.
+- **OpenAI** — `api.openai.com` serves CORS headers so browser calls work directly. The `dangerouslyAllowBrowser` flag you may have seen is an SDK-level guard in the `openai` npm package, not a CORS control; since this app uses raw `fetch`, no flag is needed.
+- **Local endpoints** (LM Studio, Ollama with `OLLAMA_ORIGINS=*`) work out of the box.
+
+Your API key is stored in the browser's localStorage and sent only to the base URL you configured. Don't use this option on a shared machine.
+
 ## Mobile
 
 On a detected mobile device the app defaults to **Llama 3.2 1B** instead of Gemma 2 9B, and the model picker shows a warning header plus a green/amber/red dot next to each row reflecting how likely it is to run on phones. Realistically, only the 1B is a safe bet on a recent flagship (Android or iPhone); 3B and Phi 3.5 Mini are borderline and may OOM on 8 GB devices; everything else is desktop-only. Safari 18+ on iOS/iPadOS supports WebGPU, so iPhones and iPads can run the game natively.
@@ -116,7 +129,7 @@ The file appears on the story selection screen automatically on next dev server 
 | **Explore** | Toggle explore mode — the AI lingers in the current scene (atmosphere, detail, reactions) instead of advancing the plot |
 | **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Save / Load** | Click the save icon (💾) in the header |
-| **Switch model** | Click the model chip in the header |
+| **Switch model** | Click the model chip in the header (includes a **Custom API…** entry for OpenAI-compatible endpoints) |
 | **Difficulty (E / M / H)** | Shift the balance of power between the player and the world — see [Difficulty](#difficulty) |
 
 ## Difficulty
@@ -134,7 +147,7 @@ You can change difficulty mid-story — it rebuilds the system prompt in place o
 - The AI Game Master responds using a structured tagged-line format: `[STORY]`, `[SAY:Name]`, `[DO:Name]`, `[NEW_CHAR:name|role|gender|note]`
 - New named characters introduced by the AI are automatically added to the character panel
 - Character names in AI output are fuzzy-matched against the known roster to tolerate minor typos
-- Conversation history is automatically compacted (summarised by the model) when it approaches the 4096-token context limit, keeping sessions going indefinitely
+- Conversation history is automatically compacted (summarised by the model) when it approaches the model's context limit, keeping sessions going indefinitely
 - Saves are stored in the browser's IndexedDB — no account or server needed
 - All processing is client-side — nothing is sent to any server
 

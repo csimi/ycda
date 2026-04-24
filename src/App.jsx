@@ -71,7 +71,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [npcs, setNpcs] = useState([]);
   const [lastRun, setLastRun] = useState(null);
-  const { status, progress, loadingPhase, modelId, error: llmError, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt } = useLLM();
+  const { status, progress, loadingPhase, modelId, error: llmError, customConfig, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt, setCustomConfig } = useLLM();
   const { saves, saveGame, deleteSave } = useSaves();
   const [savesDialogOpen, setSavesDialogOpen] = useState(false);
   const [savesDialogMode, setSavesDialogMode] = useState("load");
@@ -464,6 +464,8 @@ function App() {
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
+          customConfig={customConfig}
+          onSaveCustomConfig={setCustomConfig}
           uploadedStories={uploadedStories}
           onUploadStory={(story) => setUploadedStories((prev) => { const exists = prev.some((s) => s.id === story.id); return exists ? prev.map((s) => s.id === story.id ? story : s) : [...prev, story]; })}
           saves={saves}
@@ -501,6 +503,8 @@ function App() {
           onSwitchModel={switchModel}
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
+          customConfig={customConfig}
+          onSaveCustomConfig={setCustomConfig}
           isMobile={isMobile}
           fontSerif={fontSerif}
           onToggleFontSerif={toggleFontSerif}
@@ -530,6 +534,8 @@ function App() {
           onCancelLoad={cancelLoad}
           onRetryLoad={retryLoad}
           llmInitializingLabel={updatingNpcId ? "Updating character…" : undefined}
+          customConfig={customConfig}
+          onSaveCustomConfig={setCustomConfig}
           storyTitle={activeStory.title}
           onHome={() => setActiveStory(null)}
           difficulty={difficulty}

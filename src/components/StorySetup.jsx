@@ -18,6 +18,8 @@ export default function StorySetup({
   onSwitchModel,
   onCancelLoad,
   onRetryLoad,
+  customConfig,
+  onSaveCustomConfig,
   isMobile,
   fontSerif,
   onToggleFontSerif,
@@ -51,6 +53,8 @@ export default function StorySetup({
         onSwitchModel={onSwitchModel}
         onCancelLoad={onCancelLoad}
         onRetryLoad={onRetryLoad}
+        customConfig={customConfig}
+        onSaveCustomConfig={onSaveCustomConfig}
         isMobile={isMobile}
         fontSerif={fontSerif}
         onToggleFontSerif={onToggleFontSerif}

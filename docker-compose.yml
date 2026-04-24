@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+      # Pin the context size so behavior doesn't silently change with available
+      # VRAM. 4096 is Ollama's default for <24 GiB VRAM. Raise if you have more.
+      - OLLAMA_CONTEXT_LENGTH=4096
+    # Requires the NVIDIA Container Toolkit on the host. Without a GPU, remove
+    # this block — Ollama falls back to CPU inference (very slow for 26B models).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama
+    depends_on:
+      - ollama
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull gemma4:26b"
+    restart: "no"
+
+volumes:
+  ollama:

@@ -5,7 +5,9 @@ import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { AVAILABLE_MODELS, isMobileDevice } from "../hooks/useLLM";
+import CloudIcon from "@mui/icons-material/Cloud";
+import { AVAILABLE_MODELS, isMobileDevice, CUSTOM_MODEL_ID } from "../hooks/useLLM";
+import CustomApiDialog from "./CustomApiDialog";
 
 const IS_MOBILE = isMobileDevice();
 
@@ -24,17 +26,21 @@ const STATUS_CONFIG = {
   error:        { label: "AI error",           color: "error" },
 };
 
-export default function LLMStatusBar({ status, loadingPhase, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad, initializingLabel }) {
+export default function LLMStatusBar({ status, loadingPhase, error, modelId, onSwitchModel, onCancelLoad, onRetryLoad, initializingLabel, customConfig, onSaveCustomConfig }) {
   const [anchor, setAnchor] = useState(null);
+  const [configOpen, setConfigOpen] = useState(false);
 
   if (status === "uninitialized") return null;
   const cfg = STATUS_CONFIG[status];
   if (!cfg) return null;
 
+  const isCustom = modelId === CUSTOM_MODEL_ID;
   const label = status === "loading"
     ? (loadingPhase === "downloading" ? "Downloading model…" : "Loading AI…")
     : status === "initializing" && initializingLabel
     ? initializingLabel
+    : status === "ready" && isCustom && customConfig?.model
+    ? `Custom: ${customConfig.model}`
     : cfg.label;
 
   const canSwitch = status === "ready" || status === "cancelled" || status === "error";
@@ -137,7 +143,30 @@ export default function LLMStatusBar({ status, loadingPhase, error, modelId, onS
             </React.Fragment>
           );
         })}
+        <Divider sx={{ my: 0.3 }} />
+        <MenuItem
+          selected={isCustom}
+          onClick={() => { setAnchor(null); setConfigOpen(true); }}
+          dense
+        >
+          <ListItemIcon sx={{ minWidth: 28 }}>
+            {isCustom ? <CheckIcon sx={{ fontSize: "0.9rem" }} /> : <CloudIcon sx={{ fontSize: "0.9rem" }} />}
+          </ListItemIcon>
+          <ListItemText
+            primary="Custom API…"
+            secondary={isCustom && customConfig?.model ? customConfig.model : "OpenAI-compatible endpoint"}
+            primaryTypographyProps={{ fontSize: "0.82rem" }}
+            secondaryTypographyProps={{ fontSize: "0.7rem" }}
+          />
+        </MenuItem>
       </Menu>
+      <CustomApiDialog
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        customConfig={customConfig}
+        onSave={onSaveCustomConfig}
+        onSwitchModel={onSwitchModel}
+      />
     </Box>
   );
 }

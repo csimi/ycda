@@ -2,10 +2,27 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
 import { distance } from "fastest-levenshtein";
+import { createOpenAIEngine } from "../lib/openaiEngine";
 
 const DEFAULT_MODEL_ID = "gemma-2-9b-it-q4f16_1-MLC";
 const MOBILE_DEFAULT_MODEL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 const MODEL_STORAGE_KEY = "modelId";
+
+// Sentinel model id for the user-configured OpenAI-compatible endpoint.
+export const CUSTOM_MODEL_ID = "__custom_openai__";
+const CUSTOM_CONFIG_STORAGE_KEY = "customModelConfig";
+const CUSTOM_DEFAULT_CONTEXT = 4096;
+
+function loadCustomConfig() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_CONFIG_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function isValidCustomConfig(cfg) {
+  return !!(cfg && cfg.baseURL && cfg.apiKey && cfg.model);
+}
 
 export function isMobileDevice() {
   if (typeof navigator === "undefined") return false;
@@ -126,6 +143,7 @@ export const AVAILABLE_MODELS = [
 
 function getInitialModelId() {
   const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+  if (stored === CUSTOM_MODEL_ID && isValidCustomConfig(loadCustomConfig())) return CUSTOM_MODEL_ID;
   if (stored && AVAILABLE_MODELS.some((m) => m.id === stored)) return stored;
   return isMobileDevice() ? MOBILE_DEFAULT_MODEL_ID : DEFAULT_MODEL_ID;
 }
@@ -278,7 +296,14 @@ export function useLLM() {
   const [loadingPhase, setLoadingPhase] = useState("downloading"); // "downloading" | "loading"
   const [modelId, setModelId] = useState(getInitialModelId);
   const [error, setError] = useState(null);
+  const [customConfig, setCustomConfigState] = useState(loadCustomConfig);
+  // engineRef points at whichever engine is currently active (web-llm or custom).
+  // webllmEngineRef/openaiEngineRef hold the actual instances so we can swap without
+  // tearing down the web-llm worker on every switch.
   const engineRef = useRef(null);
+  const webllmEngineRef = useRef(null);
+  const openaiEngineRef = useRef(null);
+  const customConfigRef = useRef(loadCustomConfig());
   const workerRef = useRef(null);
   const historyRef = useRef([]);
   const rosterRef = useRef([]);
@@ -306,7 +331,42 @@ export function useLLM() {
     const myToken = ++loadTokenRef.current;
     const run = loadChainRef.current.catch(() => {}).then(async () => {
       if (myToken !== loadTokenRef.current) return; // cancelled before start
-      if (!engineRef.current) return;
+
+      // Branch: custom OpenAI-compatible endpoint. No download, no worker reload —
+      // just swap the active engine and trust that fetch() will surface config
+      // errors on the first generation.
+      if (id === CUSTOM_MODEL_ID) {
+        const cfg = customConfigRef.current;
+        if (!isValidCustomConfig(cfg)) {
+          setError("Custom API not configured — set base URL, API key, and model name.");
+          setStatus("error");
+          statusRef.current = "error";
+          return;
+        }
+        // Abort any in-flight custom request and free its adapter before making a new one.
+        openaiEngineRef.current?.unload?.().catch(() => {});
+        // Unload any loaded web-llm model to free GPU memory. Safe even if nothing is loaded.
+        webllmEngineRef.current?.unload?.().catch(() => {});
+        openaiEngineRef.current = createOpenAIEngine({
+          baseURL: cfg.baseURL,
+          apiKey:  cfg.apiKey,
+          model:   cfg.model,
+          disableThinking: !!cfg.disableThinking,
+        });
+        engineRef.current = openaiEngineRef.current;
+        contextWindowRef.current = Number(cfg.contextWindow) || CUSTOM_DEFAULT_CONTEXT;
+        setError(null);
+        setModelId(CUSTOM_MODEL_ID);
+        setStatus("ready");
+        statusRef.current = "ready";
+        return;
+      }
+
+      if (!webllmEngineRef.current) return;
+      // Leaving custom for a web-llm model — abort any in-flight custom request.
+      openaiEngineRef.current?.unload?.().catch(() => {});
+      engineRef.current = webllmEngineRef.current;
+
       setStatus("loading");
       statusRef.current = "loading";
       setProgress(0);
@@ -342,7 +402,7 @@ export function useLLM() {
   useEffect(() => {
     // Guard against StrictMode double-mount creating a second worker before
     // the first teardown finishes.
-    if (engineRef.current) return;
+    if (webllmEngineRef.current) return;
 
     const worker = new Worker(
       new URL("../workers/llmWorker.js", import.meta.url),
@@ -350,7 +410,7 @@ export function useLLM() {
     );
     const engine = new webllm.WebWorkerMLCEngine(worker);
     workerRef.current = worker;
-    engineRef.current = engine;
+    webllmEngineRef.current = engine;
 
     loadModel(modelId);
 
@@ -360,9 +420,13 @@ export function useLLM() {
       // WebGPU resources pinned. Then terminate the worker thread.
       loadTokenRef.current++;
       const w = workerRef.current;
-      const e = engineRef.current;
+      const e = webllmEngineRef.current;
+      const oa = openaiEngineRef.current;
       if (engineRef.current === engine) engineRef.current = null;
+      if (webllmEngineRef.current === engine) webllmEngineRef.current = null;
       if (workerRef.current === worker) workerRef.current = null;
+      openaiEngineRef.current = null;
+      oa?.unload?.().catch(() => {});
       loadChainRef.current.finally(() => {
         e?.unload?.().catch(() => {}).finally(() => {
           w?.terminate();
@@ -377,15 +441,12 @@ export function useLLM() {
     // call unload() — web-llm wires its AbortController to unload(), which
     // aborts the fetchWithCache calls inside reloadInternal and causes the
     // reload promise to reject. The catch branch in loadModel sees the stale
-    // token and stays silent.
+    // token and stays silent. Only web-llm goes through this state; the custom
+    // adapter has no download step.
     loadTokenRef.current++;
     setStatus("cancelled");
     statusRef.current = "cancelled";
-    // Fire unload() to abort in-flight downloads. The reload() promise will
-    // reject, run1 will settle (stale-token branch), and retryLoad/switchModel
-    // can then start. During GPU init the worker may not process unload()
-    // until init completes — that delay is unavoidable.
-    engineRef.current?.unload?.().catch(() => {});
+    webllmEngineRef.current?.unload?.().catch(() => {});
   }, []);
 
   const retryLoad = useCallback(() => {
@@ -584,6 +645,38 @@ export function useLLM() {
     return loadModel(newModelId);
   }, [loadModel]);
 
+  // Save/update the OpenAI-compatible endpoint config. If the custom model is
+  // currently active, rebuild the adapter immediately so the new values take
+  // effect on the next generation; context window is applied in place.
+  const setCustomConfig = useCallback((cfg) => {
+    const normalized = {
+      baseURL: cfg.baseURL?.trim() ?? "",
+      apiKey:  cfg.apiKey ?? "",
+      model:   cfg.model?.trim() ?? "",
+      contextWindow: Math.max(1, Math.floor(Number(cfg.contextWindow) || CUSTOM_DEFAULT_CONTEXT)),
+      disableThinking: !!cfg.disableThinking,
+    };
+    try { localStorage.setItem(CUSTOM_CONFIG_STORAGE_KEY, JSON.stringify(normalized)); } catch {}
+    customConfigRef.current = normalized;
+    setCustomConfigState(normalized);
+
+    // If the custom endpoint is currently active, rebuild the adapter in place.
+    // (Detected via engineRef pointing at the openai adapter rather than a state check,
+    // so this works inside a stable useCallback.)
+    const customIsActive = engineRef.current && engineRef.current === openaiEngineRef.current;
+    if (customIsActive && isValidCustomConfig(normalized)) {
+      openaiEngineRef.current?.unload?.().catch(() => {});
+      openaiEngineRef.current = createOpenAIEngine({
+        baseURL: normalized.baseURL,
+        apiKey:  normalized.apiKey,
+        model:   normalized.model,
+        disableThinking: normalized.disableThinking,
+      });
+      engineRef.current = openaiEngineRef.current;
+      contextWindowRef.current = normalized.contextWindow;
+    }
+  }, []);
+
   const appendToSystemPrompt = useCallback((extra) => {
     if (historyRef.current[0]?.role === "system") {
       historyRef.current[0].content += extra;
@@ -712,5 +805,5 @@ NOTE: <2–3 short sentences (under 50 words total). Start from the existing not
     if (sysMsg) sysMsg.content = sysMsg.content.slice(0, length);
   }, []);
 
-  return { status, progress, loadingPhase, modelId, error, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt };
+  return { status, progress, loadingPhase, modelId, error, customConfig, generate, revertLast, setSystemPrompt, setSystemPromptText, setRoster, switchModel, cancel, cancelLoad, retryLoad, pruneEntries, undoCompaction, appendToSystemPrompt, seedInitialEntries, getSnapshot, restoreSnapshot, updateNpcProfile, getSystemPromptLength, truncateSystemPrompt, setCustomConfig };
 }
