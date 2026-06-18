@@ -162,7 +162,7 @@ export default function LLMStatusBar({ status, loadingPhase, error, modelId, onS
             primary="Chrome built-in AI"
             secondary={PROMPT_API_AVAILABLE
               ? "Gemini Nano · ~3.25B params"
-              : "Needs Chrome — enable at chrome://flags/#prompt-api-for-gemini-nano"}
+              : "Requires Chrome (Prompt API)"}
             primaryTypographyProps={{ fontSize: "0.82rem" }}
             secondaryTypographyProps={{ fontSize: "0.7rem" }}
           />
