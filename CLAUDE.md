@@ -41,6 +41,7 @@ src/
 
   lib/
     openaiEngine.js         # Thin OpenAI-compatible adapter; exposes the web-llm engine subset useLLM.js calls
+    promptApiEngine.js      # Thin adapter over Chrome's built-in Prompt API (Gemini Nano); same engine subset
 
   data/
     systemPrompt.js         # buildSystemPrompt(characters, npcs, extraContext?, difficulty?) → string
@@ -242,6 +243,21 @@ Defined in `AVAILABLE_MODELS` (exported from `useLLM.js`). Each entry has a `mob
 | **Gemma 2 9B** *(default on desktop)* | `gemma-2-9b-it-q4f16_1-MLC` | ~5.5 GB | 4096 | no |
 
 `isMobileDevice()` (UA-based, also exported from `useLLM.js`) is used by `getInitialModelId` to pick the mobile default when no `modelId` is in localStorage.
+
+### Chrome built-in AI (Prompt API / Gemini Nano)
+
+When the browser exposes the global `LanguageModel` (Chrome's built-in Prompt API), the model dropdown shows a **Chrome built-in AI** option. It runs Gemini Nano fully on-device; Chrome ships and caches the weights, so there is no weights download managed by YCDA (though Chrome itself may do a one-time fetch on first use, tracked via the progress bar).
+
+Sentinel id: `PROMPT_API_MODEL_ID = "__chrome_prompt__"` (exported from `useLLM.js`). When active, `engineRef.current` points at the object returned by `createPromptApiEngine()` in `src/lib/promptApiEngine.js`, which exposes the same web-llm engine subset (`chat.completions.create`, `getMessage`, `interruptGenerate`, `unload`, `setInitProgressCallback`, `reload`). The adapter:
+
+- Splits the OpenAI-style message list: the system message becomes the session's `initialPrompts`, the remaining user/assistant turns are passed to `session.prompt()` / `session.promptStreaming()`.
+- Creates a fresh `LanguageModel` session per generation (YCDA owns history via the rolling window, so the session is stateless), then `destroy()`s it.
+- Maps `promptStreaming` deltas to the `{ choices: [{ delta: { content } }] }` chunk shape, so the streaming loop, summary call, and NPC-profile-update call all work unchanged.
+- Passes `temperature` only alongside a small `topK` (the Prompt API requires both or neither).
+- `reload()` warms up a throwaway session whose `monitor`'s `downloadprogress` events feed the progress bar. `LanguageModel.create()` must be the **first** async call in `reload()` — Chrome requires transient user activation (a click) to START a Gemini Nano download, and any preceding `await` (e.g. an `availability()` pre-check) spends the gesture, yielding `"Requires a user gesture…"`. `reload()` is therefore only ever reached from a click-driven model switch.
+- Context window is **discovered**, not fixed: the warm-up session's `session.inputQuota` (the real per-session input budget, in Gemini Nano's own tokens) is read in `reload()` and exposed via `getContextWindow()`. `loadModel` adopts it as `contextWindowRef`, falling back to `PROMPT_API_CONTEXT = 4096` when the field is missing.
+
+`isPromptApiAvailable()` (re-exported from `useLLM.js`) gates `getInitialModelId` restoration; the dropdown entry is always rendered but disabled (with a `chrome://flags` hint) when the API is absent. `cancelLoad` and `cancel` abort via the adapter's `unload()`/`interruptGenerate()` (AbortControllers). The status-bar chip reads `Chrome AI (Nano)` when ready, and the menu entry's secondary line reads `Gemini Nano · ~3.25B params`.
 
 ### Custom OpenAI-compatible endpoint
 

@@ -6,10 +6,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CloudIcon from "@mui/icons-material/Cloud";
-import { AVAILABLE_MODELS, isMobileDevice, CUSTOM_MODEL_ID } from "../hooks/useLLM";
+import MemoryIcon from "@mui/icons-material/Memory";
+import { AVAILABLE_MODELS, isMobileDevice, CUSTOM_MODEL_ID, PROMPT_API_MODEL_ID, isPromptApiAvailable } from "../hooks/useLLM";
 import CustomApiDialog from "./CustomApiDialog";
 
 const IS_MOBILE = isMobileDevice();
+const PROMPT_API_AVAILABLE = isPromptApiAvailable();
 
 const MOBILE_BADGE = {
   ok:    { color: "success.main", title: "Should run on mobile" },
@@ -35,12 +37,15 @@ export default function LLMStatusBar({ status, loadingPhase, error, modelId, onS
   if (!cfg) return null;
 
   const isCustom = modelId === CUSTOM_MODEL_ID;
+  const isPromptApi = modelId === PROMPT_API_MODEL_ID;
   const label = status === "loading"
     ? (loadingPhase === "downloading" ? "Downloading model…" : "Loading AI…")
     : status === "initializing" && initializingLabel
     ? initializingLabel
     : status === "ready" && isCustom && customConfig?.model
     ? `Custom: ${customConfig.model}`
+    : status === "ready" && isPromptApi
+    ? "Chrome AI (Nano)"
     : cfg.label;
 
   const canSwitch = status === "ready" || status === "cancelled" || status === "error";
@@ -143,6 +148,25 @@ export default function LLMStatusBar({ status, loadingPhase, error, modelId, onS
             </React.Fragment>
           );
         })}
+        <Divider sx={{ my: 0.3 }} />
+        <MenuItem
+          selected={isPromptApi}
+          disabled={!PROMPT_API_AVAILABLE}
+          onClick={() => { onSwitchModel(PROMPT_API_MODEL_ID); setAnchor(null); }}
+          dense
+        >
+          <ListItemIcon sx={{ minWidth: 28 }}>
+            {isPromptApi ? <CheckIcon sx={{ fontSize: "0.9rem" }} /> : <MemoryIcon sx={{ fontSize: "0.9rem" }} />}
+          </ListItemIcon>
+          <ListItemText
+            primary="Chrome built-in AI"
+            secondary={PROMPT_API_AVAILABLE
+              ? "Gemini Nano · ~3.25B params"
+              : "Needs Chrome — enable at chrome://flags/#prompt-api-for-gemini-nano"}
+            primaryTypographyProps={{ fontSize: "0.82rem" }}
+            secondaryTypographyProps={{ fontSize: "0.7rem" }}
+          />
+        </MenuItem>
         <Divider sx={{ my: 0.3 }} />
         <MenuItem
           selected={isCustom}

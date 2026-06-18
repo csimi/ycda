@@ -48,6 +48,10 @@ The model is selected in-app via the AI status chip in the header. Weights are d
 
 The 8B models require ~6 GB of available GPU memory. If generation stalls or the page crashes, switch to a smaller model.
 
+### Chrome built-in AI (Gemini Nano)
+
+On Chrome versions that expose the built-in [Prompt API](https://developer.chrome.com/docs/ai/prompt-api), the model dropdown gains a **Chrome built-in AI** entry. It runs Gemini Nano fully on-device through the browser, so there's no multi-gigabyte model download managed by YCDA — Chrome ships and caches the weights itself (it may do a one-time fetch on first use, shown on the progress bar). Streaming, cancellation, NPC profile updates, and context compaction all work unchanged. The entry only appears when the API is available in your browser.
+
 ### Custom OpenAI-compatible endpoint
 
 At the bottom of the model dropdown is a **Custom API…** entry. Clicking it opens a dialog where you can enter a base URL, API key, model name, and context size for any OpenAI-compatible Chat Completions endpoint — local servers like [LM Studio](https://lmstudio.ai/), [Ollama](https://ollama.com/) (with `OLLAMA_ORIGINS=*`), or a hosted provider that allows browser-origin calls. The context size you enter drives the same rolling prompt window and compaction trigger used by the built-in models.
@@ -129,7 +133,7 @@ The file appears on the story selection screen automatically on next dev server 
 | **Explore** | Toggle explore mode — the AI lingers in the current scene (atmosphere, detail, reactions) instead of advancing the plot |
 | **Scenario cards** | Quick-action buttons defined by the story — click to fire a preset prompt |
 | **Save / Load** | Click the save icon (💾) in the header |
-| **Switch model** | Click the model chip in the header (includes a **Custom API…** entry for OpenAI-compatible endpoints) |
+| **Switch model** | Click the model chip in the header (includes **Chrome built-in AI** when available, and a **Custom API…** entry for OpenAI-compatible endpoints) |
 | **Difficulty (E / M / H)** | Shift the balance of power between the player and the world — see [Difficulty](#difficulty) |
 
 ## Difficulty

@@ -3,6 +3,7 @@ import * as webllm from "@mlc-ai/web-llm";
 import { estimateTokenCount } from "tokenx";
 import { distance } from "fastest-levenshtein";
 import { createOpenAIEngine } from "../lib/openaiEngine";
+import { createPromptApiEngine, isPromptApiAvailable } from "../lib/promptApiEngine";
 
 const DEFAULT_MODEL_ID = "gemma-2-9b-it-q4f16_1-MLC";
 const MOBILE_DEFAULT_MODEL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
@@ -12,6 +13,12 @@ const MODEL_STORAGE_KEY = "modelId";
 export const CUSTOM_MODEL_ID = "__custom_openai__";
 const CUSTOM_CONFIG_STORAGE_KEY = "customModelConfig";
 const CUSTOM_DEFAULT_CONTEXT = 4096;
+
+// Sentinel model id for Chrome's built-in Prompt API (Gemini Nano).
+export const PROMPT_API_MODEL_ID = "__chrome_prompt__";
+// Conservative fallback used until the real per-session inputQuota is discovered.
+const PROMPT_API_CONTEXT = 4096;
+export { isPromptApiAvailable };
 
 function loadCustomConfig() {
   try {
@@ -144,6 +151,7 @@ export const AVAILABLE_MODELS = [
 function getInitialModelId() {
   const stored = localStorage.getItem(MODEL_STORAGE_KEY);
   if (stored === CUSTOM_MODEL_ID && isValidCustomConfig(loadCustomConfig())) return CUSTOM_MODEL_ID;
+  if (stored === PROMPT_API_MODEL_ID && isPromptApiAvailable()) return PROMPT_API_MODEL_ID;
   if (stored && AVAILABLE_MODELS.some((m) => m.id === stored)) return stored;
   return isMobileDevice() ? MOBILE_DEFAULT_MODEL_ID : DEFAULT_MODEL_ID;
 }
@@ -303,6 +311,7 @@ export function useLLM() {
   const engineRef = useRef(null);
   const webllmEngineRef = useRef(null);
   const openaiEngineRef = useRef(null);
+  const promptApiEngineRef = useRef(null);
   const customConfigRef = useRef(loadCustomConfig());
   const workerRef = useRef(null);
   const historyRef = useRef([]);
@@ -347,6 +356,8 @@ export function useLLM() {
         openaiEngineRef.current?.unload?.().catch(() => {});
         // Unload any loaded web-llm model to free GPU memory. Safe even if nothing is loaded.
         webllmEngineRef.current?.unload?.().catch(() => {});
+        // Abort any in-flight Prompt API request/download.
+        promptApiEngineRef.current?.unload?.().catch(() => {});
         openaiEngineRef.current = createOpenAIEngine({
           baseURL: cfg.baseURL,
           apiKey:  cfg.apiKey,
@@ -362,9 +373,50 @@ export function useLLM() {
         return;
       }
 
+      // Branch: Chrome's built-in Prompt API (Gemini Nano). On-device, no weights
+      // managed by us — there may still be a one-time Chrome-side download, which
+      // reload() tracks via the progress callback.
+      if (id === PROMPT_API_MODEL_ID) {
+        // Free the other engines so only one model holds resources at a time.
+        openaiEngineRef.current?.unload?.().catch(() => {});
+        webllmEngineRef.current?.unload?.().catch(() => {});
+        if (!promptApiEngineRef.current) promptApiEngineRef.current = createPromptApiEngine();
+        engineRef.current = promptApiEngineRef.current;
+        contextWindowRef.current = PROMPT_API_CONTEXT;
+
+        setStatus("loading");
+        statusRef.current = "loading";
+        setProgress(0);
+        setLoadingPhase("downloading");
+        setError(null);
+        engineRef.current.setInitProgressCallback((report) => {
+          if (myToken !== loadTokenRef.current) return;
+          setProgress(report.progress ?? 0);
+          setLoadingPhase("downloading");
+        });
+        try {
+          await engineRef.current.reload(id);
+          if (myToken !== loadTokenRef.current) return;
+          // Adopt the real per-session input budget discovered during reload.
+          const discovered = engineRef.current.getContextWindow?.();
+          contextWindowRef.current = (typeof discovered === "number" && discovered > 0) ? discovered : PROMPT_API_CONTEXT;
+          setModelId(PROMPT_API_MODEL_ID);
+          setStatus("ready");
+          statusRef.current = "ready";
+        } catch (err) {
+          if (myToken !== loadTokenRef.current) return;
+          console.error("Prompt API engine init failed:", err);
+          setError(err?.message || String(err) || "Unknown error");
+          setStatus("error");
+          statusRef.current = "error";
+        }
+        return;
+      }
+
       if (!webllmEngineRef.current) return;
-      // Leaving custom for a web-llm model — abort any in-flight custom request.
+      // Leaving custom/Prompt API for a web-llm model — abort any in-flight requests.
       openaiEngineRef.current?.unload?.().catch(() => {});
+      promptApiEngineRef.current?.unload?.().catch(() => {});
       engineRef.current = webllmEngineRef.current;
 
       setStatus("loading");
@@ -422,11 +474,14 @@ export function useLLM() {
       const w = workerRef.current;
       const e = webllmEngineRef.current;
       const oa = openaiEngineRef.current;
+      const pa = promptApiEngineRef.current;
       if (engineRef.current === engine) engineRef.current = null;
       if (webllmEngineRef.current === engine) webllmEngineRef.current = null;
       if (workerRef.current === worker) workerRef.current = null;
       openaiEngineRef.current = null;
+      promptApiEngineRef.current = null;
       oa?.unload?.().catch(() => {});
+      pa?.unload?.().catch(() => {});
       loadChainRef.current.finally(() => {
         e?.unload?.().catch(() => {}).finally(() => {
           w?.terminate();
@@ -447,6 +502,8 @@ export function useLLM() {
     setStatus("cancelled");
     statusRef.current = "cancelled";
     webllmEngineRef.current?.unload?.().catch(() => {});
+    // The Prompt API has its own download phase; abort it too.
+    promptApiEngineRef.current?.unload?.().catch(() => {});
   }, []);
 
   const retryLoad = useCallback(() => {
