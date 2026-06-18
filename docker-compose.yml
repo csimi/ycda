@@ -22,6 +22,9 @@ services:
       # Pin the context size so behavior doesn't silently change with available
       # VRAM. 4096 is Ollama's default for <24 GiB VRAM. Raise if you have more.
       - OLLAMA_CONTEXT_LENGTH=4096
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KV_CACHE_TYPE=q4_0
+      - OLLAMA_NUM_PARALLEL=1
     # Requires the NVIDIA Container Toolkit on the host. Without a GPU, remove
     # this block — Ollama falls back to CPU inference (very slow for 26B models).
     deploy:
